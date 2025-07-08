@@ -1,0 +1,2 @@
+# medsync
+Hospital Management System 
