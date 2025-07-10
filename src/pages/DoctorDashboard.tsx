@@ -1,9 +1,9 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Users, FileText, Pill, Activity, Phone, Bell, Stethoscope } from 'lucide-react';
+import { Calendar, Clock, Users, FileText, Pill, Activity, Phone, Bell, Stethoscope, LogOut } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -11,9 +11,11 @@ import { Form, FormItem, FormLabel, FormControl, FormField, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useNavigate } from 'react-router-dom';
 
 const DoctorDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [doctor, setDoctor] = useState<any>(null);
@@ -30,6 +32,22 @@ const DoctorDashboard = () => {
     time: '',
     type: 'Consultation',
     notes: '',
+  });
+  const [showPrescriptionsModal, setShowPrescriptionsModal] = useState(false);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(false);
+  const [prescriptionsError, setPrescriptionsError] = useState('');
+  const [prescriptionSearch, setPrescriptionSearch] = useState('');
+  const [showCreatePrescription, setShowCreatePrescription] = useState(false);
+  const [createPrescriptionLoading, setCreatePrescriptionLoading] = useState(false);
+  const [createPrescriptionError, setCreatePrescriptionError] = useState('');
+  const [createPrescriptionSuccess, setCreatePrescriptionSuccess] = useState('');
+  const [createPrescriptionForm, setCreatePrescriptionForm] = useState({
+    patient: '',
+    medication: '',
+    quantity: '',
+    date: '',
+    status: 'pending',
   });
 
   useEffect(() => {
@@ -63,6 +81,40 @@ const DoctorDashboard = () => {
     };
     if (user?.role === 'doctor') fetchData();
   }, [user]);
+
+  // Fetch prescriptions for this doctor
+  useEffect(() => {
+    if (!showPrescriptionsModal || !doctor) return;
+    const fetchPrescriptions = async () => {
+      setPrescriptionsLoading(true);
+      setPrescriptionsError('');
+      try {
+        const res = await request('/prescriptions');
+        // Filter prescriptions for this doctor
+        const myPrescriptions = res.prescriptions.filter((p: any) => {
+          return p.doctor && (p.doctor._id === doctor._id || p.doctor.id === doctor._id);
+        });
+        setPrescriptions(myPrescriptions);
+      } catch (err: any) {
+        setPrescriptionsError(err.message || 'Failed to fetch prescriptions.');
+      } finally {
+        setPrescriptionsLoading(false);
+      }
+    };
+    fetchPrescriptions();
+  }, [showPrescriptionsModal, doctor]);
+
+  // Filtered prescriptions by search
+  const filteredPrescriptions = useMemo(() => {
+    if (!prescriptionSearch) return prescriptions;
+    return prescriptions.filter((p: any) => {
+      const patientName = p.patient?.user?.name || p.patient?.name || '';
+      return (
+        patientName.toLowerCase().includes(prescriptionSearch.toLowerCase()) ||
+        p.medication.toLowerCase().includes(prescriptionSearch.toLowerCase())
+      );
+    });
+  }, [prescriptions, prescriptionSearch]);
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
@@ -117,6 +169,56 @@ const DoctorDashboard = () => {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const handleCreatePrescriptionChange = (field: string, value: string) => {
+    setCreatePrescriptionForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreatePrescriptionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatePrescriptionLoading(true);
+    setCreatePrescriptionError('');
+    setCreatePrescriptionSuccess('');
+    try {
+      if (!createPrescriptionForm.patient || !createPrescriptionForm.medication || !createPrescriptionForm.quantity || !createPrescriptionForm.date) {
+        setCreatePrescriptionError('Please fill all required fields.');
+        setCreatePrescriptionLoading(false);
+        return;
+      }
+      const hospitalId = doctor && doctor.user && doctor.user.hospitalId ? doctor.user.hospitalId : '';
+      const payload = {
+        patient: createPrescriptionForm.patient,
+        doctor: doctor._id || doctor.id,
+        hospitalId,
+        medication: createPrescriptionForm.medication,
+        quantity: Number(createPrescriptionForm.quantity),
+        date: createPrescriptionForm.date,
+        status: createPrescriptionForm.status,
+      };
+      await request('/prescriptions', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      setCreatePrescriptionSuccess('Prescription created successfully!');
+      setShowCreatePrescription(false);
+      setCreatePrescriptionForm({ patient: '', medication: '', quantity: '', date: '', status: 'pending' });
+      // Refresh prescriptions list
+      const res = await request('/prescriptions');
+      const myPrescriptions = res.prescriptions.filter((p: any) => {
+        return p.doctor && (p.doctor._id === doctor._id || p.doctor.id === doctor._id);
+      });
+      setPrescriptions(myPrescriptions);
+    } catch (err: any) {
+      setCreatePrescriptionError(err.message || 'Failed to create prescription.');
+    } finally {
+      setCreatePrescriptionLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -137,6 +239,10 @@ const DoctorDashboard = () => {
               <Button variant="outline" size="sm">
                 <Phone className="h-4 w-4 mr-2" />
                 Emergency
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
               </Button>
             </div>
           </div>
@@ -260,10 +366,119 @@ const DoctorDashboard = () => {
               </form>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
-            <Pill className="h-5 w-5 mb-1" />
-            Prescriptions
-          </Button>
+          <Dialog open={showPrescriptionsModal} onOpenChange={setShowPrescriptionsModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-16 flex flex-col items-center justify-center" onClick={() => setShowPrescriptionsModal(true)}>
+                <Pill className="h-5 w-5 mb-1" />
+                Prescriptions
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Prescriptions</DialogTitle>
+              </DialogHeader>
+              <div className="mb-4 flex gap-2">
+                <Input
+                  placeholder="Search by patient or medication..."
+                  value={prescriptionSearch}
+                  onChange={e => setPrescriptionSearch(e.target.value)}
+                  className="flex-1"
+                />
+                <Button className="medical-gradient text-white" type="button" onClick={() => setShowCreatePrescription((v) => !v)}>
+                  {showCreatePrescription ? 'Cancel' : 'Create Prescription'}
+                </Button>
+              </div>
+              {showCreatePrescription && (
+                <form onSubmit={handleCreatePrescriptionSubmit} className="mb-6 space-y-3 bg-gray-50 p-4 rounded-lg border">
+                  <div className="flex gap-2">
+                    <FormItem className="flex-1">
+                      <FormLabel>Patient</FormLabel>
+                      <Select value={createPrescriptionForm.patient} onValueChange={v => handleCreatePrescriptionChange('patient', v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select patient" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {patientOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                    <FormItem className="flex-1">
+                      <FormLabel>Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" value={createPrescriptionForm.date} onChange={e => handleCreatePrescriptionChange('date', e.target.value)} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  </div>
+                  <div className="flex gap-2">
+                    <FormItem className="flex-1">
+                      <FormLabel>Medication</FormLabel>
+                      <FormControl>
+                        <Input value={createPrescriptionForm.medication} onChange={e => handleCreatePrescriptionChange('medication', e.target.value)} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                    <FormItem className="flex-1">
+                      <FormLabel>Quantity</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" value={createPrescriptionForm.quantity} onChange={e => handleCreatePrescriptionChange('quantity', e.target.value)} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  </div>
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select value={createPrescriptionForm.status} onValueChange={v => handleCreatePrescriptionChange('status', v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="ready">Ready</SelectItem>
+                        <SelectItem value="dispensing">Dispensing</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                  {createPrescriptionError && <div className="text-red-500 text-sm">{createPrescriptionError}</div>}
+                  {createPrescriptionSuccess && <div className="text-green-600 text-sm">{createPrescriptionSuccess}</div>}
+                  <DialogFooter>
+                    <Button type="submit" className="medical-gradient text-white" disabled={createPrescriptionLoading}>
+                      {createPrescriptionLoading ? 'Creating...' : 'Create Prescription'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              )}
+              {prescriptionsLoading ? (
+                <div className="text-center py-8">Loading...</div>
+              ) : prescriptionsError ? (
+                <div className="text-red-500 text-center py-8">{prescriptionsError}</div>
+              ) : filteredPrescriptions.length === 0 ? (
+                <div className="text-gray-500 text-center py-8">No prescriptions found.</div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto space-y-4">
+                  {filteredPrescriptions.map((p: any) => (
+                    <Card key={p._id || p.id} className="border p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-semibold text-lg">{p.medication}</div>
+                          <div className="text-sm text-gray-600">Patient: {p.patient?.user?.name || p.patient?.name || 'Unknown'}</div>
+                          <div className="text-sm text-gray-600">Quantity: {p.quantity}</div>
+                          <div className="text-sm text-gray-600">Date: {p.date}</div>
+                        </div>
+                        <Badge variant={p.status === 'completed' ? 'default' : p.status === 'pending' ? 'secondary' : 'outline'}>{p.status}</Badge>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
             <FileText className="h-5 w-5 mb-1" />
             Medical Records
