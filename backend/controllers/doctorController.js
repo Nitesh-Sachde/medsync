@@ -87,4 +87,15 @@ exports.getDoctorsByHospital = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
+};
+
+// Get doctor by user ID (for login/dashboard)
+exports.getDoctorByUser = async (req, res) => {
+  try {
+    const doctor = await Doctor.findOne({ user: req.params.userId }).populate('user');
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+    res.json({ doctor });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 }; 

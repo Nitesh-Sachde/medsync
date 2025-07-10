@@ -11,6 +11,13 @@ exports.register = async (req, res) => {
     if (user) return res.status(400).json({ message: 'User already exists' });
     user = new User({ name, email, password, role, contact });
     await user.save();
+    // If registering a doctor, also create a Doctor document
+    if (role === 'doctor') {
+      const Doctor = require('../models/Doctor');
+      const specialty = req.body.specialty || '';
+      const department = req.body.department || '';
+      await new Doctor({ user: user._id, specialty, department }).save();
+    }
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {

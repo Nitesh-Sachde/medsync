@@ -6,6 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, Users, FileText, Pill, Activity, Phone, Bell, Stethoscope } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Form, FormItem, FormLabel, FormControl, FormField, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
@@ -15,14 +20,25 @@ const DoctorDashboard = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
+  const [showConsultModal, setShowConsultModal] = useState(false);
+  const [consultLoading, setConsultLoading] = useState(false);
+  const [consultError, setConsultError] = useState('');
+  const [consultSuccess, setConsultSuccess] = useState('');
+  const [consultForm, setConsultForm] = useState({
+    patient: '',
+    date: '',
+    time: '',
+    type: 'Consultation',
+    notes: '',
+  });
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError('');
       try {
-        // Fetch doctor info
-        const doctorRes = await request(`/doctors/${user?.id}`);
+        // Fetch doctor info using the new endpoint
+        const doctorRes = await request(`/doctors/by-user/${user?.id}`);
         setDoctor(doctorRes.doctor);
         // Fetch all appointments and filter for this doctor
         const apptRes = await request('/appointments');
@@ -51,6 +67,56 @@ const DoctorDashboard = () => {
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
+  // Helper for patient options
+  const patientOptions = patients.map((p: any) => ({
+    value: p._id || p.id,
+    label: p.name || (p.user && p.user.name) || 'Patient',
+  }));
+
+  // Handle form changes
+  const handleConsultChange = (field: string, value: string) => {
+    setConsultForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Handle form submit
+  const handleConsultSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConsultLoading(true);
+    setConsultError('');
+    setConsultSuccess('');
+    try {
+      if (!consultForm.patient || !consultForm.date || !consultForm.time) {
+        setConsultError('Please fill all required fields.');
+        setConsultLoading(false);
+        return;
+      }
+      // Find patient object for hospitalId
+      const patientObj = patients.find((p: any) => (p._id || p.id) === consultForm.patient);
+      const hospitalId = doctor && doctor.user && doctor.user.hospitalId ? doctor.user.hospitalId : '';
+      const payload = {
+        patient: consultForm.patient,
+        doctor: doctor._id || doctor.id,
+        hospitalId,
+        date: consultForm.date,
+        time: consultForm.time,
+        status: 'confirmed',
+        type: consultForm.type,
+        notes: consultForm.notes,
+      };
+      await request('/appointments', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      setConsultSuccess('Consultation created successfully!');
+      setShowConsultModal(false);
+      // Optionally, refresh appointments
+    } catch (err: any) {
+      setConsultError(err.message || 'Failed to create consultation.');
+    } finally {
+      setConsultLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -59,7 +125,9 @@ const DoctorDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Doctor Dashboard</h1>
-              <p className="text-gray-600">Dr. Sarah Johnson - Cardiology</p>
+              <p className="text-gray-600">
+                {doctor && doctor.user && doctor.user.name ? `Dr. ${doctor.user.name}${doctor.specialty ? ' - ' + doctor.specialty : ''}${doctor.department ? ' (' + doctor.department + ')' : ''}` : 'Doctor'}
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm">
@@ -126,10 +194,72 @@ const DoctorDashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <Button className="h-16 medical-gradient text-white flex flex-col items-center justify-center">
-            <Stethoscope className="h-5 w-5 mb-1" />
-            New Consultation
-          </Button>
+          <Dialog open={showConsultModal} onOpenChange={setShowConsultModal}>
+            <DialogTrigger asChild>
+              <Button className="h-16 medical-gradient text-white flex flex-col items-center justify-center" onClick={() => setShowConsultModal(true)}>
+                <Stethoscope className="h-5 w-5 mb-1" />
+                New Consultation
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New Consultation</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleConsultSubmit} className="space-y-4">
+                <FormItem>
+                  <FormLabel>Patient</FormLabel>
+                  <Select value={consultForm.patient} onValueChange={v => handleConsultChange('patient', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select patient" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {patientOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+                <div className="flex gap-2">
+                  <FormItem className="flex-1">
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" value={consultForm.date} onChange={e => handleConsultChange('date', e.target.value)} required />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                  <FormItem className="flex-1">
+                    <FormLabel>Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" value={consultForm.time} onChange={e => handleConsultChange('time', e.target.value)} required />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                </div>
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <FormControl>
+                    <Input value={consultForm.type} onChange={e => handleConsultChange('type', e.target.value)} placeholder="Consultation, Follow-up, Emergency..." />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea value={consultForm.notes} onChange={e => handleConsultChange('notes', e.target.value)} placeholder="Optional notes..." />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+                {consultError && <div className="text-red-500 text-sm">{consultError}</div>}
+                {consultSuccess && <div className="text-green-600 text-sm">{consultSuccess}</div>}
+                <DialogFooter>
+                  <Button type="submit" className="medical-gradient text-white" disabled={consultLoading}>
+                    {consultLoading ? 'Creating...' : 'Create Consultation'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
             <Pill className="h-5 w-5 mb-1" />
             Prescriptions

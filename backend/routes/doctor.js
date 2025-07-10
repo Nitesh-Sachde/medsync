@@ -15,5 +15,6 @@ router.put('/:id', auth, role(['admin', 'doctor']), doctorController.updateDocto
 // Delete doctor (admin)
 router.delete('/:id', auth, role(['admin']), doctorController.deleteDoctor);
 router.get('/by-hospital', auth, role(['admin', 'receptionist', 'doctor', 'patient']), doctorController.getDoctorsByHospital);
+router.get('/by-user/:userId', auth, role(['doctor', 'admin', 'receptionist']), doctorController.getDoctorByUser);
 
 module.exports = router; 
