@@ -11,7 +11,7 @@ const ProtectedRoute: React.FC<Props> = ({ children, role }) => {
   const { user, loading } = useAuth();
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   if (role) {
     if (Array.isArray(role)) {
       if (!role.includes(user.role)) return <Navigate to="/" replace />;

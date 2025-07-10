@@ -1,19 +1,47 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Heart, Menu, X, User, Calendar, MessageSquare, Activity } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/authContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
+
+  useEffect(() => {
+    if (location.pathname === '/' && user) {
+      switch (user.role) {
+        case 'admin':
+          navigate('/admin-dashboard');
+          break;
+        case 'doctor':
+          navigate('/doctor-dashboard');
+          break;
+        case 'patient':
+          navigate('/patient-dashboard');
+          break;
+        case 'receptionist':
+          navigate('/receptionist-dashboard');
+          break;
+        case 'pharmacist':
+          navigate('/pharmacy-dashboard');
+          break;
+        case 'super-admin':
+          navigate('/superadmin');
+          break;
+        default:
+          navigate('/');
+      }
+    }
+  }, [user, location, navigate]);
 
   return (
     <header className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
@@ -57,10 +85,9 @@ const Header = () => {
                     Login
                   </Button>
                 </Link>
-                <Link to="/appointments">
+                <Link to="/register">
                   <Button className="medical-gradient text-white hover:opacity-90 transition-opacity">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Book Appointment
+                    Register
                   </Button>
                 </Link>
               </>

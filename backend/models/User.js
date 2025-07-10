@@ -13,6 +13,7 @@ const UserSchema = new mongoose.Schema({
   contact: { type: String },
   mustChangePassword: { type: Boolean, default: false },
   hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' },
+  active: { type: Boolean, default: true },
 }, { timestamps: true });
 
 UserSchema.pre('save', async function (next) {

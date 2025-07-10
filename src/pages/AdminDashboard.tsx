@@ -9,10 +9,15 @@ import { useAuth } from '../lib/authContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { useNavigate } from 'react-router-dom';
+import { logout } from '../lib/api';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { user, logout } = useAuth();
+ const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stats, setStats] = useState<any>({});
   const [activities, setActivities] = useState<any[]>([]);
@@ -23,6 +28,20 @@ const AdminDashboard = () => {
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserError, setAddUserError] = useState('');
   const [addUserSuccess, setAddUserSuccess] = useState('');
+  const [activeSection, setActiveSection] = useState('user-management');
+  const [showEditUser, setShowEditUser] = useState(false);
+  const [editUser, setEditUser] = useState<any>(null);
+  const [editUserLoading, setEditUserLoading] = useState(false);
+  const [editUserError, setEditUserError] = useState('');
+  const [editUserSuccess, setEditUserSuccess] = useState('');
+  const [users, setUsers] = useState<any[]>([]);
+  const [showDeleteUser, setShowDeleteUser] = useState(false);
+  const [deleteUser, setDeleteUser] = useState<any>(null);
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
+  const [deleteUserError, setDeleteUserError] = useState('');
+  const [deleteUserSuccess, setDeleteUserSuccess] = useState('');
+
+  const navigate = useNavigate();
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +55,22 @@ const AdminDashboard = () => {
       });
       setAddUserSuccess('User added successfully!');
       setForm({ name: '', email: '', password: '', role: 'doctor', contact: '', specialty: '', department: '' });
-      // Optionally refresh user list here
+      setShowAddUser(false); // Close modal
+      fetchUsers(); // Refresh list
     } catch (err: any) {
       setAddUserError(err.message);
     } finally {
       setAddUserLoading(false);
+    }
+  };
+
+  // Fetch users separately for easier refresh
+  const fetchUsers = async () => {
+    try {
+      const staffRes = await request('/users');
+      setUsers(staffRes.users || []);
+    } catch (err) {
+      setUsers([]);
     }
   };
 
@@ -77,7 +107,72 @@ const AdminDashboard = () => {
       }
     };
     if (user?.role === 'admin') fetchData();
+    fetchUsers();
   }, [user]);
+
+  const handleEditUser = (user: any) => {
+    setEditUser(user);
+    setShowEditUser(true);
+    setEditUserError('');
+    setEditUserSuccess('');
+  };
+
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditUserLoading(true);
+    setEditUserError('');
+    setEditUserSuccess('');
+    try {
+      await request(`/users/${editUser._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: editUser.name,
+          email: editUser.email,
+          role: editUser.role,
+          contact: editUser.contact,
+        }),
+      });
+      setEditUserSuccess('User updated successfully!');
+      setShowEditUser(false);
+      fetchUsers();
+    } catch (err: any) {
+      setEditUserError(err.message);
+    } finally {
+      setEditUserLoading(false);
+    }
+  };
+
+  const handleDeleteUser = (user: any) => {
+    setDeleteUser(user);
+    setShowDeleteUser(true);
+    setDeleteUserError('');
+    setDeleteUserSuccess('');
+  };
+
+  const handleDeleteUserConfirm = async () => {
+    setDeleteUserLoading(true);
+    setDeleteUserError('');
+    setDeleteUserSuccess('');
+    try {
+      await request(`/users/${deleteUser._id}`, { method: 'DELETE' });
+      setDeleteUserSuccess('User deleted successfully!');
+      setShowDeleteUser(false);
+      fetchUsers();
+    } catch (err: any) {
+      setDeleteUserError(err.message);
+    } finally {
+      setDeleteUserLoading(false);
+    }
+  };
+
+  const handleToggleActive = async (user: any) => {
+    try {
+      await request(`/users/${user._id}/toggle-active`, { method: 'PATCH' });
+      fetchUsers();
+    } catch (err) {
+      // Optionally show error
+    }
+  };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
@@ -125,13 +220,14 @@ const AdminDashboard = () => {
               <p className="text-gray-600">Hospital Management & Administration</p>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Database className="h-4 w-4 mr-2" />
-                Backup System
-              </Button>
-              <Button className="medical-gradient text-white" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                System Settings
+              <Button
+                className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded"
+                onClick={() => {
+                  logout();
+                  setTimeout(() => navigate('/'), 100);
+                }}
+              >
+                Logout
               </Button>
             </div>
           </div>
@@ -146,7 +242,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Patients</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.totalPatients.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.totalPatients?.toLocaleString?.() ?? 0}</p>
                   <p className="text-xs text-green-600">+12% from last month</p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
@@ -158,7 +254,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
-                  <p className="text-2xl font-bold text-green-600">${stats.monthlyRevenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-green-600">${stats.monthlyRevenue?.toLocaleString?.() ?? 0}</p>
                   <p className="text-xs text-green-600">+8% from last month</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-green-600" />
@@ -170,7 +266,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.todayAppointments}</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.todayAppointments ?? 0}</p>
                   <p className="text-xs text-purple-600">Peak at 2-4 PM</p>
                 </div>
                 <Calendar className="h-8 w-8 text-purple-600" />
@@ -182,7 +278,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">System Uptime</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.systemUptime}</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.systemUptime ?? '99.9%'}</p>
                   <p className="text-xs text-green-600">Excellent performance</p>
                 </div>
                 <Activity className="h-8 w-8 text-orange-600" />
@@ -198,7 +294,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Active Users</p>
-                  <p className="text-lg font-bold">{stats.activeUsers}</p>
+                  <p className="text-lg font-bold">{stats.activeUsers ?? 0}</p>
                 </div>
                 <Users className="h-6 w-6 text-blue-500" />
               </div>
@@ -209,7 +305,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Total Doctors</p>
-                  <p className="text-lg font-bold">{stats.totalDoctors}</p>
+                  <p className="text-lg font-bold">{stats.totalDoctors ?? 0}</p>
                 </div>
                 <Shield className="h-6 w-6 text-green-500" />
               </div>
@@ -220,7 +316,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Total Staff</p>
-                  <p className="text-lg font-bold">{stats.totalStaff}</p>
+                  <p className="text-lg font-bold">{stats.totalStaff ?? 0}</p>
                 </div>
                 <Building className="h-6 w-6 text-purple-500" />
               </div>
@@ -231,7 +327,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Pending Approvals</p>
-                  <p className="text-lg font-bold">{stats.pendingApprovals}</p>
+                  <p className="text-lg font-bold">{stats.pendingApprovals ?? 0}</p>
                 </div>
                 <AlertTriangle className="h-6 w-6 text-orange-500" />
               </div>
@@ -239,192 +335,169 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions as Section Tabs */}
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
-          <Button className="h-16 medical-gradient text-white flex flex-col items-center justify-center">
+          <Button className={`h-16 flex flex-col items-center justify-center ${activeSection === 'user-management' ? 'medical-gradient text-white' : 'bg-white border text-gray-800'}`} onClick={() => setActiveSection('user-management')}>
             <Users className="h-5 w-5 mb-1" />
             User Management
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button className={`h-16 flex flex-col items-center justify-center ${activeSection === 'system-config' ? 'medical-gradient text-white' : 'bg-white border text-gray-800'}`} onClick={() => setActiveSection('system-config')}>
             <Settings className="h-5 w-5 mb-1" />
             System Config
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button className={`h-16 flex flex-col items-center justify-center ${activeSection === 'database' ? 'medical-gradient text-white' : 'bg-white border text-gray-800'}`} onClick={() => setActiveSection('database')}>
             <Database className="h-5 w-5 mb-1" />
             Database
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button className={`h-16 flex flex-col items-center justify-center ${activeSection === 'reports' ? 'medical-gradient text-white' : 'bg-white border text-gray-800'}`} onClick={() => setActiveSection('reports')}>
             <TrendingUp className="h-5 w-5 mb-1" />
             Reports
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button className={`h-16 flex flex-col items-center justify-center ${activeSection === 'security' ? 'medical-gradient text-white' : 'bg-white border text-gray-800'}`} onClick={() => setActiveSection('security')}>
             <Shield className="h-5 w-5 mb-1" />
             Security
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button className={`h-16 flex flex-col items-center justify-center ${activeSection === 'alerts' ? 'medical-gradient text-white' : 'bg-white border text-gray-800'}`} onClick={() => setActiveSection('alerts')}>
             <AlertTriangle className="h-5 w-5 mb-1" />
             Alerts
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Pending Approvals */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Pending Approvals
-              </CardTitle>
-              <CardDescription>Items requiring administrative approval</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {approvals.map((approval) => (
-                  <div key={approval.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{approval.type}</h4>
-                      <p className="text-sm text-gray-600">{approval.name}</p>
-                      <p className="text-sm text-gray-500">{approval.department} - {approval.date}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="text-green-600 border-green-600">
-                        Approve
+        {/* Section Content Below Cards */}
+        {activeSection === 'user-management' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Users</h2>
+              <Button className="medical-gradient text-white" onClick={() => setShowAddUser(true)}>
+                Add User
+              </Button>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user: any) => (
+                    <TableRow key={user._id}>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</TableCell>
+                      <TableCell>{user.contact || '-'}</TableCell>
+                      <TableCell>
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${user.active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>{user.active ? 'Active' : 'Inactive'}</span>
+                        <Switch checked={user.active} onCheckedChange={() => handleToggleActive(user)} className="ml-2 align-middle" />
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="ghost" className="mr-2 text-blue-600 border border-gray-300 hover:bg-blue-100 hover:text-blue-800 transition-colors" onClick={() => handleEditUser(user)}>Edit</Button>
+                        <Button size="sm" variant="ghost" className="mr-2 text-red-600 border border-gray-300 hover:bg-red-100 hover:text-red-800 transition-colors" onClick={() => handleDeleteUser(user)}>Delete</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {/* Add User Dialog (reuse your existing code, but remove floating button) */}
+            <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add User</DialogTitle></DialogHeader>
+                <form onSubmit={handleAddUser} className="space-y-4">
+                  <Input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                  <Input placeholder="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+                  <Input placeholder="Contact" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} />
+                  <Select value={form.role} onValueChange={role => setForm({ ...form, role })}>
+                    <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="doctor">Doctor</SelectItem>
+                      <SelectItem value="receptionist">Receptionist</SelectItem>
+                      <SelectItem value="pharmacist">Pharmacist</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {form.role === 'doctor' && (
+                    <>
+                      <Input placeholder="Specialty" value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })} />
+                      <Input placeholder="Department" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} />
+                    </>
+                  )}
+                  <div className="text-sm text-gray-600">A password will be auto-generated and sent to the user's email. They must change it before first use.</div>
+                  {addUserError && <div className="text-red-500 text-sm">{addUserError}</div>}
+                  {addUserSuccess && <div className="text-green-600 text-sm">{addUserSuccess}</div>}
+                  <Button type="submit" className="w-full medical-gradient text-white" disabled={addUserLoading}>
+                    {addUserLoading ? 'Adding...' : 'Add User'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+            {/* Edit User Dialog */}
+            <Dialog open={showEditUser} onOpenChange={setShowEditUser}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
+                {editUser && (
+                  <form onSubmit={handleEditUserSubmit} className="space-y-4">
+                    <Input placeholder="Name" value={editUser.name} onChange={e => setEditUser({ ...editUser, name: e.target.value })} required />
+                    <Input placeholder="Email" type="email" value={editUser.email} onChange={e => setEditUser({ ...editUser, email: e.target.value })} required />
+                    <Input placeholder="Contact" value={editUser.contact} onChange={e => setEditUser({ ...editUser, contact: e.target.value })} />
+                    <Select value={editUser.role} onValueChange={role => setEditUser({ ...editUser, role })}>
+                      <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="doctor">Doctor</SelectItem>
+                        <SelectItem value="receptionist">Receptionist</SelectItem>
+                        <SelectItem value="pharmacist">Pharmacist</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {editUserError && <div className="text-red-500 text-sm">{editUserError}</div>}
+                    {editUserSuccess && <div className="text-green-600 text-sm">{editUserSuccess}</div>}
+                    <Button type="submit" className="w-full medical-gradient text-white" disabled={editUserLoading}>
+                      {editUserLoading ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
+            {/* Delete User Dialog */}
+            <Dialog open={showDeleteUser} onOpenChange={setShowDeleteUser}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Delete User</DialogTitle></DialogHeader>
+                {deleteUser && (
+                  <div className="space-y-4">
+                    <div>Are you sure you want to delete <span className="font-semibold">{deleteUser.name}</span> ({deleteUser.email})?</div>
+                    {deleteUserError && <div className="text-red-500 text-sm">{deleteUserError}</div>}
+                    {deleteUserSuccess && <div className="text-green-600 text-sm">{deleteUserSuccess}</div>}
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => setShowDeleteUser(false)} disabled={deleteUserLoading}>Cancel</Button>
+                      <Button variant="destructive" onClick={handleDeleteUserConfirm} disabled={deleteUserLoading}>
+                        {deleteUserLoading ? 'Deleting...' : 'Delete'}
                       </Button>
-                      <Button size="sm" variant="outline" className="text-red-600 border-red-600">
-                        Reject
-                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Department Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                Department Overview
-              </CardTitle>
-              <CardDescription>Current status of all departments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {departments.map((dept) => (
-                  <div key={dept.name} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{dept.name}</h4>
-                      <p className="text-sm text-gray-600">{dept.patients} patients | {dept.staff} staff</p>
-                      <p className="text-sm text-gray-500">Utilization: {dept.utilization}</p>
-                    </div>
-                    <Badge variant={
-                      dept.status === 'high' ? 'destructive' :
-                      dept.status === 'normal' ? 'default' : 'secondary'
-                    }>
-                      {dept.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent System Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Recent System Activity
-              </CardTitle>
-              <CardDescription>Latest system events and notifications</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {activities.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{activity.message}</p>
-                      <p className="text-sm text-gray-500">{activity.time}</p>
-                    </div>
-                    <Badge variant={
-                      activity.priority === 'high' ? 'destructive' :
-                      activity.priority === 'medium' ? 'default' : 'secondary'
-                    }>
-                      {activity.priority}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* System Health */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                System Health
-              </CardTitle>
-              <CardDescription>Current system performance metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                  <span className="text-sm text-green-900">Database Performance</span>
-                  <span className="font-medium text-green-900">Excellent</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                  <span className="text-sm text-blue-900">Server Load</span>
-                  <span className="font-medium text-blue-900">45%</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                  <span className="text-sm text-yellow-900">Memory Usage</span>
-                  <span className="font-medium text-yellow-900">72%</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                  <span className="text-sm text-purple-900">Active Connections</span>
-                  <span className="font-medium text-purple-900">{stats.activeUsers}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+        {activeSection === 'system-config' && (
+          <div className="bg-white rounded-lg shadow p-6">System Config (Coming soon)</div>
+        )}
+        {activeSection === 'database' && (
+          <div className="bg-white rounded-lg shadow p-6">Database (Coming soon)</div>
+        )}
+        {activeSection === 'reports' && (
+          <div className="bg-white rounded-lg shadow p-6">Reports (Coming soon)</div>
+        )}
+        {activeSection === 'security' && (
+          <div className="bg-white rounded-lg shadow p-6">Security (Coming soon)</div>
+        )}
+        {activeSection === 'alerts' && (
+          <div className="bg-white rounded-lg shadow p-6">Alerts (Coming soon)</div>
+        )}
       </div>
-      <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
-        <DialogTrigger asChild>
-          <Button className="mb-4">Add User</Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add User</DialogTitle></DialogHeader>
-          <form onSubmit={handleAddUser} className="space-y-4">
-            <Input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-            <Input placeholder="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-            <Input placeholder="Password" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-            <Input placeholder="Contact" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} />
-            <Select value={form.role} onValueChange={role => setForm({ ...form, role })}>
-              <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="doctor">Doctor</SelectItem>
-                <SelectItem value="receptionist">Receptionist</SelectItem>
-                <SelectItem value="pharmacist">Pharmacist</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-            {form.role === 'doctor' && (
-              <>
-                <Input placeholder="Specialty" value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })} />
-                <Input placeholder="Department" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} />
-              </>
-            )}
-            {addUserError && <div className="text-red-500 text-sm">{addUserError}</div>}
-            {addUserSuccess && <div className="text-green-600 text-sm">{addUserSuccess}</div>}
-            <Button type="submit" className="w-full medical-gradient text-white" disabled={addUserLoading}>
-              {addUserLoading ? 'Adding...' : 'Add User'}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

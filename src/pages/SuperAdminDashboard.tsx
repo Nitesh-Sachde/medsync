@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const SuperAdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -228,176 +230,201 @@ const SuperAdminDashboard = () => {
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Super Admin Dashboard</h1>
-      <div className="mb-6">
-        <Button onClick={() => handleShowHospitalForm()} disabled={actionLoading}>
-          {showHospitalForm ? 'Cancel' : 'Add New Hospital'}
-        </Button>
-        {showHospitalForm && (
-          <form onSubmit={handleCreateOrUpdateHospital} className="mt-4 flex flex-col gap-2 bg-gray-50 p-4 rounded shadow">
-            <input
-              type="text"
-              name="name"
-              placeholder="Hospital Name"
-              value={hospitalForm.name}
-              onChange={handleHospitalFormChange}
-              className="border rounded px-2 py-1"
-              required
-              disabled={actionLoading}
-            />
-            <input
-              type="text"
-              name="address"
-              placeholder="Hospital Address"
-              value={hospitalForm.address}
-              onChange={handleHospitalFormChange}
-              className="border rounded px-2 py-1"
-              disabled={actionLoading}
-            />
-            <input
-              type="text"
-              name="contact"
-              placeholder="Hospital Contact"
-              value={hospitalForm.contact}
-              onChange={handleHospitalFormChange}
-              className="border rounded px-2 py-1"
-              disabled={actionLoading}
-            />
-            {!editingHospital && (
-              <>
-                <div className="font-semibold mt-2 mb-1">First Admin Details</div>
-                <input
-                  type="text"
-                  name="adminName"
-                  placeholder="Admin Name"
-                  value={hospitalForm.adminName}
-                  onChange={handleHospitalFormChange}
-                  className="border rounded px-2 py-1"
-                  required
-                  disabled={actionLoading}
-                />
-                <input
-                  type="email"
-                  name="adminEmail"
-                  placeholder="Admin Email"
-                  value={hospitalForm.adminEmail}
-                  onChange={handleHospitalFormChange}
-                  className="border rounded px-2 py-1"
-                  required
-                  disabled={actionLoading}
-                />
-                <input
-                  type="text"
-                  name="adminContact"
-                  placeholder="Admin Contact"
-                  value={hospitalForm.adminContact}
-                  onChange={handleHospitalFormChange}
-                  className="border rounded px-2 py-1"
-                  disabled={actionLoading}
-                />
-              </>
-            )}
-            <Button type="submit" disabled={actionLoading}>
-              {actionLoading ? <Loader2 className="animate-spin mr-2" /> : null}
-              {editingHospital ? 'Update Hospital' : 'Create Hospital & Admin'}
-            </Button>
-          </form>
-        )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Super Admin Dashboard</h1>
+              <p className="text-gray-600">System & Hospital Management</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button
+                className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded"
+                onClick={() => {
+                  logout();
+                  setTimeout(() => navigate('/'), 100);
+                }}
+              >
+                Logout
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="space-y-4">
-        {hospitals.map((hospital) => (
-          <Card key={hospital._id}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>{hospital.name}</CardTitle>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleShowHospitalForm(hospital)} disabled={actionLoading}>Edit</Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDeleteHospital(hospital._id)} disabled={actionLoading}>Delete</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-2 text-sm text-gray-600">Address: {hospital.address || <span className="italic text-gray-400">N/A</span>}</div>
-              <div className="mb-2 text-sm text-gray-600">Contact: {hospital.contact || <span className="italic text-gray-400">N/A</span>}</div>
-              <div className="mb-2">
-                <div className="text-sm font-semibold text-gray-600 mb-2">Admins:</div>
-                <div className="space-y-2">
-                  {hospital.admins && hospital.admins.length > 0 ? (
-                    hospital.admins.map((admin: any) => (
-                      <div key={admin._id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                        <div>
-                          <div className="font-medium">{admin.name}</div>
-                          <div className="text-sm text-gray-600">{admin.email}</div>
-                          {admin.contact && <div className="text-sm text-gray-500">{admin.contact}</div>}
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-6">Super Admin Dashboard</h1>
+        <div className="mb-6">
+          <Button onClick={() => handleShowHospitalForm()} disabled={actionLoading}>
+            {showHospitalForm ? 'Cancel' : 'Add New Hospital'}
+          </Button>
+          {showHospitalForm && (
+            <form onSubmit={handleCreateOrUpdateHospital} className="mt-4 flex flex-col gap-2 bg-gray-50 p-4 rounded shadow">
+              <input
+                type="text"
+                name="name"
+                placeholder="Hospital Name"
+                value={hospitalForm.name}
+                onChange={handleHospitalFormChange}
+                className="border rounded px-2 py-1"
+                required
+                disabled={actionLoading}
+              />
+              <input
+                type="text"
+                name="address"
+                placeholder="Hospital Address"
+                value={hospitalForm.address}
+                onChange={handleHospitalFormChange}
+                className="border rounded px-2 py-1"
+                disabled={actionLoading}
+              />
+              <input
+                type="text"
+                name="contact"
+                placeholder="Hospital Contact"
+                value={hospitalForm.contact}
+                onChange={handleHospitalFormChange}
+                className="border rounded px-2 py-1"
+                disabled={actionLoading}
+              />
+              {!editingHospital && (
+                <>
+                  <div className="font-semibold mt-2 mb-1">First Admin Details</div>
+                  <input
+                    type="text"
+                    name="adminName"
+                    placeholder="Admin Name"
+                    value={hospitalForm.adminName}
+                    onChange={handleHospitalFormChange}
+                    className="border rounded px-2 py-1"
+                    required
+                    disabled={actionLoading}
+                  />
+                  <input
+                    type="email"
+                    name="adminEmail"
+                    placeholder="Admin Email"
+                    value={hospitalForm.adminEmail}
+                    onChange={handleHospitalFormChange}
+                    className="border rounded px-2 py-1"
+                    required
+                    disabled={actionLoading}
+                  />
+                  <input
+                    type="text"
+                    name="adminContact"
+                    placeholder="Admin Contact"
+                    value={hospitalForm.adminContact}
+                    onChange={handleHospitalFormChange}
+                    className="border rounded px-2 py-1"
+                    disabled={actionLoading}
+                  />
+                </>
+              )}
+              <Button type="submit" disabled={actionLoading}>
+                {actionLoading ? <Loader2 className="animate-spin mr-2" /> : null}
+                {editingHospital ? 'Update Hospital' : 'Create Hospital & Admin'}
+              </Button>
+            </form>
+          )}
+        </div>
+        <div className="space-y-4">
+          {hospitals.map((hospital) => (
+            <Card key={hospital._id}>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>{hospital.name}</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleShowHospitalForm(hospital)} disabled={actionLoading}>Edit</Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDeleteHospital(hospital._id)} disabled={actionLoading}>Delete</Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-2 text-sm text-gray-600">Address: {hospital.address || <span className="italic text-gray-400">N/A</span>}</div>
+                <div className="mb-2 text-sm text-gray-600">Contact: {hospital.contact || <span className="italic text-gray-400">N/A</span>}</div>
+                <div className="mb-2">
+                  <div className="text-sm font-semibold text-gray-600 mb-2">Admins:</div>
+                  <div className="space-y-2">
+                    {hospital.admins && hospital.admins.length > 0 ? (
+                      hospital.admins.map((admin: any) => (
+                        <div key={admin._id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <div>
+                            <div className="font-medium">{admin.name}</div>
+                            <div className="text-sm text-gray-600">{admin.email}</div>
+                            {admin.contact && <div className="text-sm text-gray-500">{admin.contact}</div>}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleShowAdminForm(hospital._id, admin)} disabled={actionLoading}>
+                              Edit
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleDeleteAdmin(admin._id)} disabled={actionLoading}>
+                              Delete
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleShowAdminForm(hospital._id, admin)} disabled={actionLoading}>
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteAdmin(admin._id)} disabled={actionLoading}>
-                            Delete
-                          </Button>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">No admins yet</div>
+                    )}
+                  </div>
+                  {adminForms[hospital._id] ? (
+                    <form onSubmit={(e) => handleCreateOrUpdateAdmin(e, hospital._id)} className="mt-4 flex flex-col gap-2 bg-gray-50 p-4 rounded">
+                      <input
+                        type="text"
+                        placeholder="Admin Name"
+                        value={adminInputs[hospital._id]?.name || ''}
+                        onChange={(e) => handleAdminInputChange(hospital._id, 'name', e.target.value)}
+                        className="border rounded px-2 py-1"
+                        required
+                        disabled={actionLoading}
+                      />
+                      <input
+                        type="email"
+                        placeholder="Admin Email"
+                        value={adminInputs[hospital._id]?.email || ''}
+                        onChange={(e) => handleAdminInputChange(hospital._id, 'email', e.target.value)}
+                        className="border rounded px-2 py-1"
+                        required
+                        disabled={actionLoading}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Contact"
+                        value={adminInputs[hospital._id]?.contact || ''}
+                        onChange={(e) => handleAdminInputChange(hospital._id, 'contact', e.target.value)}
+                        className="border rounded px-2 py-1"
+                        disabled={actionLoading}
+                      />
+                      <div className="flex gap-2">
+                        <Button type="submit" disabled={actionLoading}>
+                          {actionLoading ? <Loader2 className="animate-spin mr-2" /> : null}
+                          {editingAdmin ? 'Update Admin' : 'Create Admin'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setAdminForms((prev) => ({ ...prev, [hospital._id]: false }));
+                            setEditingAdmin(null);
+                          }}
+                          disabled={actionLoading}
+                        >
+                          Cancel
+                        </Button>
                       </div>
-                    ))
+                    </form>
                   ) : (
-                    <div className="text-sm text-gray-500 italic">No admins yet</div>
+                    <Button onClick={() => handleShowAdminForm(hospital._id)} className="mt-2" disabled={actionLoading}>
+                      Add Admin
+                    </Button>
                   )}
                 </div>
-                {adminForms[hospital._id] ? (
-                  <form onSubmit={(e) => handleCreateOrUpdateAdmin(e, hospital._id)} className="mt-4 flex flex-col gap-2 bg-gray-50 p-4 rounded">
-                    <input
-                      type="text"
-                      placeholder="Admin Name"
-                      value={adminInputs[hospital._id]?.name || ''}
-                      onChange={(e) => handleAdminInputChange(hospital._id, 'name', e.target.value)}
-                      className="border rounded px-2 py-1"
-                      required
-                      disabled={actionLoading}
-                    />
-                    <input
-                      type="email"
-                      placeholder="Admin Email"
-                      value={adminInputs[hospital._id]?.email || ''}
-                      onChange={(e) => handleAdminInputChange(hospital._id, 'email', e.target.value)}
-                      className="border rounded px-2 py-1"
-                      required
-                      disabled={actionLoading}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Contact"
-                      value={adminInputs[hospital._id]?.contact || ''}
-                      onChange={(e) => handleAdminInputChange(hospital._id, 'contact', e.target.value)}
-                      className="border rounded px-2 py-1"
-                      disabled={actionLoading}
-                    />
-                    <div className="flex gap-2">
-                      <Button type="submit" disabled={actionLoading}>
-                        {actionLoading ? <Loader2 className="animate-spin mr-2" /> : null}
-                        {editingAdmin ? 'Update Admin' : 'Create Admin'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setAdminForms((prev) => ({ ...prev, [hospital._id]: false }));
-                          setEditingAdmin(null);
-                        }}
-                        disabled={actionLoading}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <Button onClick={() => handleShowAdminForm(hospital._id)} className="mt-2" disabled={actionLoading}>
-                    Add Admin
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
