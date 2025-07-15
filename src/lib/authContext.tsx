@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const decoded: any = jwtDecode(token);
         setUser({ id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role, hospitalId: decoded.hospitalId });
+        localStorage.removeItem('justLoggedOut'); // Clear justLoggedOut if user is present
       } catch {
         setUser(null);
       }
@@ -42,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     const data = await apiLogin(email, password);
     setUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: data.user.role, mustChangePassword: data.user.mustChangePassword, hospitalId: data.user.hospitalId });
+    localStorage.removeItem('justLoggedOut'); // Clear justLoggedOut on login
     setLoading(false);
   };
 

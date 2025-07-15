@@ -7,9 +7,12 @@ import { Calendar, Clock, User, FileText, Pill, Activity, Phone, Bell } from 'lu
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
 import { useNavigate } from 'react-router-dom';
+import BookAppointmentForm from '../components/BookAppointmentForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const PatientDashboard = () => {
   const { user, logout } = useAuth();
+  console.log('User in PatientDashboard:', user);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -17,6 +20,17 @@ const PatientDashboard = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [labResults, setLabResults] = useState<any[]>([]);
+  const [showBookModal, setShowBookModal] = useState(false);
+
+  // If user is not authenticated, show error and redirect option
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <div className="text-red-500 text-lg mb-4">You are not logged in or your session has expired.</div>
+        <Button onClick={() => navigate('/login')}>Go to Login</Button>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,13 +42,19 @@ const PatientDashboard = () => {
         setPatient(patientRes.patient);
         // Fetch appointments for this patient
         const apptRes = await request('/appointments');
-        setAppointments(apptRes.appointments.filter((a: any) => a.patient.user === user?.id));
+        setAppointments(
+          apptRes.appointments.filter((a: any) => a?.patient?.user === user?.id)
+        );
         // Fetch prescriptions for this patient
         const presRes = await request('/prescriptions');
-        setPrescriptions(presRes.prescriptions.filter((p: any) => p.patient.user === user?.id));
+        setPrescriptions(
+          presRes.prescriptions.filter((p: any) => p?.patient?.user === user?.id)
+        );
         // Fetch lab results for this patient
         const labRes = await request('/labreports');
-        setLabResults(labRes.labReports.filter((l: any) => l.patient.user === user?.id));
+        setLabResults(
+          labRes.labReports.filter((l: any) => l?.patient?.user === user?.id)
+        );
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -56,7 +76,7 @@ const PatientDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Patient Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {patient.user?.name}</p>
+              <p className="text-gray-600">Welcome back, {patient?.user?.name || 'Patient'}</p>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm">
@@ -78,10 +98,20 @@ const PatientDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Button className="h-20 medical-gradient text-white flex flex-col items-center justify-center">
-            <Calendar className="h-6 w-6 mb-2" />
-            Book Appointment
-          </Button>
+          <Dialog open={showBookModal} onOpenChange={setShowBookModal}>
+            <DialogTrigger asChild>
+              <Button className="h-20 medical-gradient text-white flex flex-col items-center justify-center" onClick={() => setShowBookModal(true)}>
+                <Calendar className="h-6 w-6 mb-2" />
+                Book Appointment
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Book Appointment</DialogTitle>
+              </DialogHeader>
+              <BookAppointmentForm onSuccess={() => { setShowBookModal(false); /* Optionally refresh appointments here */ }} />
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
             <FileText className="h-6 w-6 mb-2" />
             View Records
@@ -111,21 +141,21 @@ const PatientDashboard = () => {
                 {appointments.map((appointment) => (
                   <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <h4 className="font-medium">{appointment.doctor.name}</h4>
-                      <p className="text-sm text-gray-600">{appointment.specialty}</p>
+                      <h4 className="font-medium">{appointment?.doctor?.name || 'Doctor'}</h4>
+                      <p className="text-sm text-gray-600">{appointment?.specialty || ''}</p>
                       <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
-                          {appointment.date}
+                          {appointment?.date || ''}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          {appointment.time}
+                          {appointment?.time || ''}
                         </span>
                       </div>
                     </div>
-                    <Badge variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}>
-                      {appointment.status}
+                    <Badge variant={appointment?.status === 'confirmed' ? 'default' : 'secondary'}>
+                      {appointment?.status || 'unknown'}
                     </Badge>
                   </div>
                 ))}
@@ -147,12 +177,12 @@ const PatientDashboard = () => {
                 {prescriptions.map((prescription) => (
                   <div key={prescription.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <h4 className="font-medium">{prescription.medication}</h4>
-                      <p className="text-sm text-gray-600">Prescribed by {prescription.doctor.name}</p>
-                      <p className="text-sm text-gray-500">{prescription.date}</p>
+                      <h4 className="font-medium">{prescription?.medication || 'Medication'}</h4>
+                      <p className="text-sm text-gray-600">Prescribed by {prescription?.doctor?.name || 'Doctor'}</p>
+                      <p className="text-sm text-gray-500">{prescription?.date || ''}</p>
                     </div>
-                    <Badge variant={prescription.status === 'active' ? 'default' : 'secondary'}>
-                      {prescription.status}
+                    <Badge variant={prescription?.status === 'active' ? 'default' : 'secondary'}>
+                      {prescription?.status || 'unknown'}
                     </Badge>
                   </div>
                 ))}
@@ -174,14 +204,14 @@ const PatientDashboard = () => {
                 {labResults.map((result) => (
                   <div key={result.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <h4 className="font-medium">{result.test}</h4>
-                      <p className="text-sm text-gray-500">{result.date}</p>
+                      <h4 className="font-medium">{result?.test || 'Test'}</h4>
+                      <p className="text-sm text-gray-500">{result?.date || ''}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={result.status === 'ready' ? 'default' : 'secondary'}>
-                        {result.status}
+                      <Badge variant={result?.status === 'ready' ? 'default' : 'secondary'}>
+                        {result?.status || 'unknown'}
                       </Badge>
-                      {result.status === 'ready' && (
+                      {result?.status === 'ready' && (
                         <Button size="sm" variant="outline">View</Button>
                       )}
                     </div>

@@ -4,8 +4,8 @@ const appointmentController = require('../controllers/appointmentController');
 const auth = require('../middleware/auth');
 const role = require('../middleware/role');
 
-// Create appointment (admin, receptionist)
-router.post('/', auth, role(['admin', 'receptionist']), appointmentController.createAppointment);
+// Create appointment (admin, receptionist, patient)
+router.post('/', auth, role(['admin', 'receptionist', 'patient']), appointmentController.createAppointment);
 // Get all appointments (admin, receptionist, doctor, patient)
 router.get('/', auth, role(['admin', 'receptionist', 'doctor', 'patient']), appointmentController.getAppointments);
 // Get single appointment (self, admin, receptionist, doctor)

@@ -87,18 +87,34 @@ exports.deleteDoctor = async (req, res) => {
   }
 };
 
+// Get doctors by hospital
 exports.getDoctorsByHospital = async (req, res) => {
   try {
     const { hospitalId } = req.query;
     if (!hospitalId) return res.status(400).json({ message: 'hospitalId is required' });
-    const doctors = await Doctor.find({ department: { $exists: true }, user: { $exists: true } })
-      .populate('user')
-      .where('user.hospitalId').equals(hospitalId);
-    res.json({ doctors });
+    // Find all doctors, populate user, and match hospitalId
+    const doctors = await Doctor.find()
+      .populate({
+        path: 'user',
+        match: { hospitalId }
+      });
+    const filteredDoctors = doctors.filter(d => d.user); // Only those with a user in this hospital
+    res.json({ doctors: filteredDoctors });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+// Get doctor by user ID (for login/dashboard)
+exports.getDoctorByUser = async (req, res) => {
+  try {
+    const doctor = await Doctor.findOne({ user: req.params.userId }).populate('user');
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+    res.json({ doctor });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}; 
 
 // Get doctor by user ID (for login/dashboard)
 exports.getDoctorByUser = async (req, res) => {

@@ -34,6 +34,7 @@ const BookAppointment = () => {
     if (!hospitalId) return setDoctors([]);
     const fetchDoctors = async () => {
       try {
+       
         const res = await request(`/doctors/by-hospital?hospitalId=${hospitalId}`);
         setDoctors(res.doctors);
       } catch (err: any) {
