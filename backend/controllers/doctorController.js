@@ -7,7 +7,7 @@ exports.createDoctor = async (req, res) => {
     const { name, email, password, contact, specialty, department } = req.body;
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
-    user = new User({ name, email, password, role: 'doctor', contact });
+    user = new User({ name, email, password, role: 'doctor', contact, hospitalId: req.user.hospitalId });
     await user.save();
     const doctor = new Doctor({ user: user._id, specialty, department });
     await doctor.save();
@@ -20,7 +20,18 @@ exports.createDoctor = async (req, res) => {
 // Get all doctors (admin, receptionist, doctor)
 exports.getDoctors = async (req, res) => {
   try {
-    const doctors = await Doctor.find().populate('user');
+    let doctors;
+    if (req.user.role === 'admin') {
+      // Only doctors for this admin's hospital
+      doctors = await Doctor.find().populate({
+        path: 'user',
+        match: { hospitalId: req.user.hospitalId }
+      });
+      // Remove null users (doctors not in this hospital)
+      doctors = doctors.filter(d => d.user);
+    } else {
+      doctors = await Doctor.find().populate('user');
+    }
     res.json({ doctors });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -68,8 +79,8 @@ exports.deleteDoctor = async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.params.id);
     if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
-    await User.findByIdAndDelete(doctor.user);
     await doctor.deleteOne();
+    await User.findByIdAndDelete(doctor.user);
     res.json({ message: 'Doctor deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

@@ -20,20 +20,21 @@ exports.createHospitalAndAdmin = async (req, res) => {
     user = new User({ name: adminName, email: adminEmail, password: adminPassword, role: 'admin', contact: adminContact, hospitalId: hospital._id, mustChangePassword: true });
     await user.save();
     // Send email with credentials
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
-      auth: {
-        user: process.env.SMTP_USER || 'your_ethereal_user',
-        pass: process.env.SMTP_PASS || 'your_ethereal_pass',
-      },
-    });
-    await transporter.sendMail({
-      from: 'no-reply@medsync.com',
-      to: adminEmail,
-      subject: 'Your MedSync Admin Account',
-      text: `Hello ${adminName},\n\nYour admin account has been created for hospital: ${hospitalName}.\n\nLogin Email: ${adminEmail}\nPassword: ${adminPassword}\n\nPlease log in and change your password immediately.\n\nMedSync Team`,
-    });
+    // const transporter = nodemailer.createTransport({
+    //   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+    //   port: process.env.SMTP_PORT || 587,
+    //   auth: {
+    //     user: process.env.SMTP_USER || 'your_ethereal_user',
+    //     pass: process.env.SMTP_PASS || 'your_ethereal_pass',
+    //   },
+    // });
+    // await transporter.sendMail({
+    //   from: 'no-reply@medsync.com',
+    //   to: adminEmail,
+    //   subject: 'Your MedSync Admin Account',
+    //   text: `Hello ${adminName},\n\nYour admin account has been created for hospital: ${hospitalName}.\n\nLogin Email: ${adminEmail}\nPassword: ${adminPassword}\n\nPlease log in and change your password immediately.\n\nMedSync Team`,
+    // });
+    console.log(adminEmail, adminPassword);
     res.status(201).json({ hospital, admin: user });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -124,26 +125,26 @@ exports.createAdmin = async (req, res) => {
     await user.save();
 
     // Send email with credentials
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
-      auth: {
-        user: process.env.SMTP_USER || 'your_ethereal_user',
-        pass: process.env.SMTP_PASS || 'your_ethereal_pass',
-      },
-    });
+    // const transporter = nodemailer.createTransport({
+    //   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+    //   port: process.env.SMTP_PORT || 587,
+    //   auth: {
+    //     user: process.env.SMTP_USER || 'your_ethereal_user',
+    //     pass: process.env.SMTP_PASS || 'your_ethereal_pass',
+    //   },
+    // });
 
-    await transporter.sendMail({
-      from: 'no-reply@medsync.com',
-      to: email,
-      subject: 'Your MedSync Admin Account',
-      text: `Hello ${name},\n\nYour admin account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nPlease log in and change your password immediately.\n\nMedSync Team`,
-    });
+    // await transporter.sendMail({
+    //   from: 'no-reply@medsync.com',
+    //   to: email,
+    //   subject: 'Your MedSync Admin Account',
+    //   text: `Hello ${name},\n\nYour admin account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nPlease log in and change your password immediately.\n\nMedSync Team`,
+    // });
 
     // Return admin without password
-    const adminWithoutPassword = user.toObject();
-    delete adminWithoutPassword.password;
-
+    // const adminWithoutPassword = user.toObject();
+    // delete adminWithoutPassword.password;
+    console.log(email, password);
     res.status(201).json({ admin: adminWithoutPassword });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

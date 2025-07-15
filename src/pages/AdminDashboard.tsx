@@ -43,6 +43,64 @@ const AdminDashboard = () => {
 
   const navigate = useNavigate();
 
+  // Fetch users separately for easier refresh
+  const fetchUsers = async () => {
+    try {
+      const staffRes = await request('/users');
+      const hospitalId = user?.hospitalId;
+      setUsers((staffRes.users || []).filter((u: any) => u.hospitalId === hospitalId));
+    } catch (err) {
+      setUsers([]);
+    }
+  };
+
+  // Main dashboard data fetcher
+  const fetchData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Fetch stats
+      const patientsRes = await request('/patients');
+      const doctorsRes = await request('/doctors');
+      const staffRes = await request('/users'); // You may need a /users endpoint for all staff
+      const appointmentsRes = await request('/appointments');
+      const approvalsRes = await request('/approvals');
+      const departmentsRes = await request('/departments');
+      const activitiesRes = await request('/activities');
+      // Filter everything by hospitalId
+      const hospitalId = user?.hospitalId;
+      const filteredPatients = patientsRes.patients.filter((p: any) => p.user?.hospitalId === hospitalId);
+      const filteredDoctors = doctorsRes.doctors.filter((d: any) => d.user?.hospitalId === hospitalId);
+      const filteredStaff = staffRes?.users?.filter((u: any) => u.hospitalId === hospitalId) || [];
+      const filteredAppointments = appointmentsRes.appointments.filter((a: any) => a.hospitalId === hospitalId);
+      const filteredApprovals = approvalsRes.approvals.filter((a: any) => a.hospitalId === hospitalId);
+      const filteredDepartments = departmentsRes.departments.filter((d: any) => d.hospitalId === hospitalId);
+      const filteredActivities = activitiesRes.activities.filter((a: any) => a.hospitalId === hospitalId);
+      setStats({
+        totalPatients: filteredPatients.length,
+        totalDoctors: filteredDoctors.length,
+        totalStaff: filteredStaff.length,
+        monthlyRevenue: 0, // Placeholder, implement if you have revenue data
+        todayAppointments: filteredAppointments.filter((a: any) => a.date === new Date().toISOString().slice(0, 10)).length,
+        systemUptime: '99.9%', // Placeholder
+        activeUsers: filteredStaff.length, // Placeholder
+        pendingApprovals: filteredApprovals.length
+      });
+      setActivities(filteredActivities);
+      setApprovals(filteredApprovals);
+      setDepartments(filteredDepartments);
+      setUsers(filteredStaff);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'admin') fetchData();
+  }, [user]);
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddUserLoading(true);
@@ -56,59 +114,13 @@ const AdminDashboard = () => {
       setAddUserSuccess('User added successfully!');
       setForm({ name: '', email: '', password: '', role: 'doctor', contact: '', specialty: '', department: '' });
       setShowAddUser(false); // Close modal
-      fetchUsers(); // Refresh list
+      fetchData(); // Refresh everything
     } catch (err: any) {
       setAddUserError(err.message);
     } finally {
       setAddUserLoading(false);
     }
   };
-
-  // Fetch users separately for easier refresh
-  const fetchUsers = async () => {
-    try {
-      const staffRes = await request('/users');
-      setUsers(staffRes.users || []);
-    } catch (err) {
-      setUsers([]);
-    }
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        // Fetch stats
-        const patientsRes = await request('/patients');
-        const doctorsRes = await request('/doctors');
-        const staffRes = await request('/users'); // You may need a /users endpoint for all staff
-        const appointmentsRes = await request('/appointments');
-        const approvalsRes = await request('/approvals');
-        const departmentsRes = await request('/departments');
-        const activitiesRes = await request('/activities');
-        setStats({
-          totalPatients: patientsRes.patients.length,
-          totalDoctors: doctorsRes.doctors.length,
-          totalStaff: staffRes?.users?.length || 0,
-          monthlyRevenue: 0, // Placeholder, implement if you have revenue data
-          todayAppointments: appointmentsRes.appointments.filter((a: any) => a.date === new Date().toISOString().slice(0, 10)).length,
-          systemUptime: '99.9%', // Placeholder
-          activeUsers: staffRes?.users?.length || 0, // Placeholder
-          pendingApprovals: approvalsRes.approvals.length
-        });
-        setActivities(activitiesRes.activities);
-        setApprovals(approvalsRes.approvals);
-        setDepartments(departmentsRes.departments);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user?.role === 'admin') fetchData();
-    fetchUsers();
-  }, [user]);
 
   const handleEditUser = (user: any) => {
     setEditUser(user);
@@ -134,7 +146,7 @@ const AdminDashboard = () => {
       });
       setEditUserSuccess('User updated successfully!');
       setShowEditUser(false);
-      fetchUsers();
+      fetchData(); // Refresh everything
     } catch (err: any) {
       setEditUserError(err.message);
     } finally {
@@ -157,7 +169,7 @@ const AdminDashboard = () => {
       await request(`/users/${deleteUser._id}`, { method: 'DELETE' });
       setDeleteUserSuccess('User deleted successfully!');
       setShowDeleteUser(false);
-      fetchUsers();
+      fetchData(); // Refresh everything
     } catch (err: any) {
       setDeleteUserError(err.message);
     } finally {
@@ -168,7 +180,7 @@ const AdminDashboard = () => {
   const handleToggleActive = async (user: any) => {
     try {
       await request(`/users/${user._id}/toggle-active`, { method: 'PATCH' });
-      fetchUsers();
+      fetchData();
     } catch (err) {
       // Optionally show error
     }

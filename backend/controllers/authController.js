@@ -18,7 +18,10 @@ exports.register = async (req, res) => {
       const department = req.body.department || '';
       await new Doctor({ user: user._id, specialty, department }).save();
     }
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    // Add hospitalId to token if present
+    const tokenPayload = { id: user._id, role: user.role };
+    if (user.hospitalId) tokenPayload.hospitalId = user.hospitalId;
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -32,7 +35,10 @@ exports.login = async (req, res) => {
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    // Add hospitalId to token if present
+    const tokenPayload = { id: user._id, role: user.role };
+    if (user.hospitalId) tokenPayload.hospitalId = user.hospitalId;
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword } });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

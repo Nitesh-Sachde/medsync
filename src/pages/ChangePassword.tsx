@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { request } from '../lib/api';
 import { useToast } from '../hooks/use-toast';
+import { useAuth } from '../lib/authContext';
 
 const ChangePassword = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { logout } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,7 @@ const ChangePassword = () => {
         body: JSON.stringify({ password }),
       });
       toast({ title: 'Password changed successfully', variant: 'default' });
+      logout();
       navigate('/login');
     } catch (err: any) {
       setError(err.message);

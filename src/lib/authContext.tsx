@@ -8,6 +8,7 @@ type User = {
   email: string;
   role: string;
   mustChangePassword?: boolean;
+  hospitalId?: string;
 };
 
 type AuthContextType = {
@@ -29,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       try {
         const decoded: any = jwtDecode(token);
-        setUser({ id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role });
+        setUser({ id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role, hospitalId: decoded.hospitalId });
       } catch {
         setUser(null);
       }
@@ -40,14 +41,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setLoading(true);
     const data = await apiLogin(email, password);
-    setUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: data.user.role, mustChangePassword: data.user.mustChangePassword });
+    setUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: data.user.role, mustChangePassword: data.user.mustChangePassword, hospitalId: data.user.hospitalId });
     setLoading(false);
   };
 
   const register = async (payload: any) => {
     setLoading(true);
     const data = await apiRegister(payload);
-    setUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: data.user.role, mustChangePassword: data.user.mustChangePassword });
+    setUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: data.user.role, mustChangePassword: data.user.mustChangePassword, hospitalId: data.user.hospitalId });
     setLoading(false);
   };
 

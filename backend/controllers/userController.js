@@ -25,20 +25,21 @@ exports.createUser = async (req, res) => {
       extra.doctor = doctor;
     }
     // Send email with credentials
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
-      auth: {
-        user: process.env.SMTP_USER || 'your_ethereal_user',
-        pass: process.env.SMTP_PASS || 'your_ethereal_pass',
-      },
-    });
-    await transporter.sendMail({
-      from: 'no-reply@medsync.com',
-      to: email,
-      subject: 'Your MedSync Account',
-      text: `Hello ${name},\n\nYour account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nPlease log in and change your password immediately.\n\nMedSync Team`,
-    });
+    // const transporter = nodemailer.createTransport({
+    //   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+    //   port: process.env.SMTP_PORT || 587,
+    //   auth: {
+    //     user: process.env.SMTP_USER || 'your_ethereal_user',
+    //     pass: process.env.SMTP_PASS || 'your_ethereal_pass',
+    //   },
+    // });
+    // await transporter.sendMail({
+    //   from: 'no-reply@medsync.com',
+    //   to: email,
+    //   subject: 'Your MedSync Account',
+    //   text: `Hello ${name},\n\nYour account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nPlease log in and change your password immediately.\n\nMedSync Team`,
+    // });
+    console.log(email, password);
     res.status(201).json({ user, ...extra });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
