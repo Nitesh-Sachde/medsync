@@ -18,6 +18,11 @@ exports.register = async (req, res) => {
       const department = req.body.department || '';
       await new Doctor({ user: user._id, specialty, department }).save();
     }
+    // If registering a patient, also create a Patient document
+    if (role === 'patient') {
+      const Patient = require('../models/Patient');
+      await new Patient({ user: user._id, healthSummary: {} }).save();
+    }
     // Add hospitalId to token if present
     const tokenPayload = { id: user._id, role: user.role };
     if (user.hospitalId) tokenPayload.hospitalId = user.hospitalId;

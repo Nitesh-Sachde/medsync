@@ -6,8 +6,8 @@ const role = require('../middleware/role');
 
 // Create lab report (doctor, admin)
 router.post('/', auth, role(['doctor', 'admin']), labReportController.createLabReport);
-// Get all lab reports (doctor, admin)
-router.get('/', auth, role(['doctor', 'admin']), labReportController.getLabReports);
+// Get all lab reports (doctor, admin, patient)
+router.get('/', auth, role(['doctor', 'admin', 'patient']), labReportController.getLabReports);
 // Get single lab report (self, doctor, admin)
 router.get('/:id', auth, role(['doctor', 'admin', 'patient']), labReportController.getLabReport);
 // Update lab report (doctor, admin)

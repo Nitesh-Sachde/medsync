@@ -33,7 +33,14 @@ const Register = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await register(formData);
+      const payload = {
+        name: formData.firstName + ' ' + formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        role: 'patient',
+        contact: formData.phone
+      };
+      const data = await register(payload);
       // Redirect based on role
       switch (data.user.role) {
         case 'admin':

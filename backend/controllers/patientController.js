@@ -42,6 +42,17 @@ exports.getPatient = async (req, res) => {
   }
 };
 
+// Get patient by user ID (for login/dashboard)
+exports.getPatientByUser = async (req, res) => {
+  try {
+    const patient = await Patient.findOne({ user: req.params.userId }).populate('user');
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+    res.json({ patient });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
 // Update patient (admin, receptionist)
 exports.updatePatient = async (req, res) => {
   try {

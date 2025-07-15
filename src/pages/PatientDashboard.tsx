@@ -6,9 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User, FileText, Pill, Activity, Phone, Bell } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
+import { useNavigate } from 'react-router-dom';
 
 const PatientDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [patient, setPatient] = useState<any>(null);
@@ -21,8 +23,8 @@ const PatientDashboard = () => {
       setLoading(true);
       setError('');
       try {
-        // Fetch patient info
-        const patientRes = await request(`/patients/${user?.id}`);
+        // Fetch patient info by user ID
+        const patientRes = await request(`/patients/by-user/${user?.id}`);
         setPatient(patientRes.patient);
         // Fetch appointments for this patient
         const apptRes = await request('/appointments');
@@ -54,7 +56,7 @@ const PatientDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Patient Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {patient.firstName} {patient.lastName}</p>
+              <p className="text-gray-600">Welcome back, {patient.user?.name}</p>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm">
@@ -64,6 +66,9 @@ const PatientDashboard = () => {
               <Button variant="outline" size="sm">
                 <Phone className="h-4 w-4 mr-2" />
                 Emergency
+              </Button>
+              <Button className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded" onClick={() => { logout(); setTimeout(() => navigate('/'), 100); }}>
+                Logout
               </Button>
             </div>
           </div>
