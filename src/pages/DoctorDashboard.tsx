@@ -50,36 +50,33 @@ const DoctorDashboard = () => {
     status: 'pending',
   });
 
+  // Add a function to refresh appointments and patients
+  const refreshAppointments = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const doctorRes = await request(`/doctors/by-user/${user?.id}`);
+      setDoctor(doctorRes.doctor);
+      const apptRes = await request('/appointments/doctor');
+      setAppointments(apptRes.appointments);
+      const patientRes = await request('/patients');
+      const myPatients = patientRes.patients.filter((p: any) => apptRes.appointments.some((a: any) => a.patient.user === p.user));
+      setPatients(myPatients);
+      setStats({
+        todayAppointments: apptRes.appointments.filter((a: any) => a.date === new Date().toISOString().slice(0, 10)).length,
+        pendingReports: 0,
+        totalPatients: myPatients.length,
+        emergencies: apptRes.appointments.filter((a: any) => a.type === 'Emergency').length
+      });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        // Fetch doctor info using the new endpoint
-        const doctorRes = await request(`/doctors/by-user/${user?.id}`);
-        setDoctor(doctorRes.doctor);
-        // Fetch all appointments and filter for this doctor
-        const apptRes = await request('/appointments');
-        const myAppointments = apptRes.appointments.filter((a: any) => a.doctor.user === user?.id);
-        setAppointments(myAppointments);
-        // Fetch all patients and filter for this doctor
-        const patientRes = await request('/patients');
-        const myPatients = patientRes.patients.filter((p: any) => myAppointments.some((a: any) => a.patient.user === p.user));
-        setPatients(myPatients);
-        // Stats
-        setStats({
-          todayAppointments: myAppointments.filter((a: any) => a.date === new Date().toISOString().slice(0, 10)).length,
-          pendingReports: 0, // Placeholder, implement if you have report data
-          totalPatients: myPatients.length,
-          emergencies: myAppointments.filter((a: any) => a.type === 'Emergency').length
-        });
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user?.role === 'doctor') fetchData();
+    if (user?.role === 'doctor') refreshAppointments();
   }, [user]);
 
   // Fetch prescriptions for this doctor
@@ -161,7 +158,7 @@ const DoctorDashboard = () => {
       });
       setConsultSuccess('Consultation created successfully!');
       setShowConsultModal(false);
-      // Optionally, refresh appointments
+      await refreshAppointments(); // Auto-refresh after booking
     } catch (err: any) {
       setConsultError(err.message || 'Failed to create consultation.');
     } finally {
@@ -300,6 +297,10 @@ const DoctorDashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          <Button variant="outline" className="h-16 flex flex-col items-center justify-center" onClick={refreshAppointments}>
+            <Calendar className="h-5 w-5 mb-1" />
+            Refresh
+          </Button>
           <Dialog open={showConsultModal} onOpenChange={setShowConsultModal}>
             <DialogTrigger asChild>
               <Button className="h-16 medical-gradient text-white flex flex-col items-center justify-center" onClick={() => setShowConsultModal(true)}>
@@ -494,38 +495,49 @@ const DoctorDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Today's Appointments */}
+          {/* Upcoming Appointments */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Today's Appointments
+                Upcoming Appointments
               </CardTitle>
-              <CardDescription>Your scheduled appointments for today</CardDescription>
+              <CardDescription>Your upcoming scheduled appointments</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {appointments.map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{appointment.patient.name}</h4>
-                      <p className="text-sm text-gray-600">{appointment.type}</p>
-                      <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
-                        <Clock className="h-4 w-4" />
-                        {appointment.time}
+                {appointments
+                  .filter((appointment) => {
+                    // Combine date and time to a Date object for comparison
+                    const appointmentDateTime = new Date(`${appointment.date}T${appointment.time}`);
+                    return appointmentDateTime >= new Date();
+                  })
+                  .sort((a, b) => {
+                    const aDateTime = new Date(`${a.date}T${a.time}`);
+                    const bDateTime = new Date(`${b.date}T${b.time}`);
+                    return aDateTime.getTime() - bDateTime.getTime();
+                  })
+                  .map((appointment) => (
+                    <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">{appointment.patient.name}</h4>
+                        <p className="text-sm text-gray-600">{appointment.type}</p>
+                        <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
+                          <Clock className="h-4 w-4" />
+                          {appointment.date} {appointment.time}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={
+                          appointment.status === 'urgent' ? 'destructive' :
+                          appointment.status === 'confirmed' ? 'default' : 'secondary'
+                        }>
+                          {appointment.status}
+                        </Badge>
+                        <Button size="sm" variant="outline">View</Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={
-                        appointment.status === 'urgent' ? 'destructive' :
-                        appointment.status === 'confirmed' ? 'default' : 'secondary'
-                      }>
-                        {appointment.status}
-                      </Badge>
-                      <Button size="sm" variant="outline">View</Button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>

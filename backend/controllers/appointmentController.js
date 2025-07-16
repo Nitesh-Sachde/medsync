@@ -1,13 +1,18 @@
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 const Doctor = require('../models/Doctor');
+const mongoose = require('mongoose');
 
 // Create appointment (admin, receptionist)
 exports.createAppointment = async (req, res) => {
   try {
     let { patient, doctor, hospitalId, date, time, status, type } = req.body;
-    // If patient is booking, use their own id
-    if (req.user.role === 'patient') patient = req.user.id;
+    // If patient is booking, use their Patient document id
+    if (req.user.role === 'patient') {
+      const patientDoc = await Patient.findOne({ user: req.user.id });
+      if (!patientDoc) return res.status(404).json({ message: 'Patient record not found' });
+      patient = patientDoc._id;
+    }
     // Validate doctor belongs to hospital
     const doctorDoc = await Doctor.findById(doctor).populate('user');
     if (!doctorDoc) return res.status(404).json({ message: 'Doctor not found' });
@@ -25,7 +30,10 @@ exports.createAppointment = async (req, res) => {
 // Get all appointments (admin, receptionist, doctor)
 exports.getAppointments = async (req, res) => {
   try {
-    const appointments = await Appointment.find().populate('patient').populate('doctor');
+    const appointments = await Appointment.find()
+      .populate('patient')
+      .populate({ path: 'doctor', populate: { path: 'user' } })
+      .populate('hospitalId');
     res.json({ appointments });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -74,6 +82,22 @@ exports.deleteAppointment = async (req, res) => {
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
     await appointment.deleteOne();
     res.json({ message: 'Appointment deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// Get appointments for the currently authenticated doctor
+exports.getDoctorAppointments = async (req, res) => {
+  try {
+    // Find the doctor document for the current user
+    const doctorDoc = await Doctor.findOne({ user: mongoose.Types.ObjectId(req.user.id) });
+    if (!doctorDoc) return res.status(404).json({ message: 'Doctor not found' });
+    const appointments = await Appointment.find({ doctor: doctorDoc._id })
+      .populate('patient')
+      .populate({ path: 'doctor', populate: { path: 'user' } })
+      .populate('hospitalId');
+    res.json({ appointments });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

@@ -14,5 +14,7 @@ router.get('/:id', auth, role(['admin', 'receptionist', 'doctor', 'patient']), a
 router.put('/:id', auth, role(['admin', 'receptionist']), appointmentController.updateAppointment);
 // Delete appointment (admin, receptionist)
 router.delete('/:id', auth, role(['admin', 'receptionist']), appointmentController.deleteAppointment);
+// Get appointments for the currently authenticated doctor
+router.get('/doctor', auth, role(['doctor']), appointmentController.getDoctorAppointments);
 
 module.exports = router; 

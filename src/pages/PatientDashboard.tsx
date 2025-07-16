@@ -40,10 +40,12 @@ const PatientDashboard = () => {
         // Fetch patient info by user ID
         const patientRes = await request(`/patients/by-user/${user?.id}`);
         setPatient(patientRes.patient);
+        console.log('Fetched patient:', patientRes.patient);
         // Fetch appointments for this patient
         const apptRes = await request('/appointments');
+        console.log('Fetched appointments:', apptRes.appointments);
         setAppointments(
-          apptRes.appointments.filter((a: any) => a?.patient?.user === user?.id)
+          apptRes.appointments.filter((a: any) => a?.patient?.user?.toString() === user?.id)
         );
         // Fetch prescriptions for this patient
         const presRes = await request('/prescriptions');
@@ -63,6 +65,19 @@ const PatientDashboard = () => {
     };
     if (user?.id) fetchData();
   }, [user]);
+
+  // Add a function to refresh data
+  const refreshData = () => {
+    if (user?.id) {
+      setLoading(true);
+      setError('');
+      request(`/patients/by-user/${user?.id}`).then(patientRes => setPatient(patientRes.patient));
+      request('/appointments').then(apptRes => setAppointments(apptRes.appointments.filter((a: any) => a?.patient?.user?.toString() === user?.id)));
+      request('/prescriptions').then(presRes => setPrescriptions(presRes.prescriptions.filter((p: any) => p?.patient?.user === user?.id)));
+      request('/labreports').then(labRes => setLabResults(labRes.labReports.filter((l: any) => l?.patient?.user === user?.id)));
+      setLoading(false);
+    }
+  };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
@@ -109,7 +124,7 @@ const PatientDashboard = () => {
               <DialogHeader>
                 <DialogTitle>Book Appointment</DialogTitle>
               </DialogHeader>
-              <BookAppointmentForm onSuccess={() => { setShowBookModal(false); /* Optionally refresh appointments here */ }} />
+              <BookAppointmentForm onSuccess={() => { setShowBookModal(false); refreshData(); }} />
             </DialogContent>
           </Dialog>
           <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
@@ -139,10 +154,11 @@ const PatientDashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 {appointments.map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={appointment._id || appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <h4 className="font-medium">{appointment?.doctor?.name || 'Doctor'}</h4>
-                      <p className="text-sm text-gray-600">{appointment?.specialty || ''}</p>
+                      <h4 className="font-medium">{appointment?.doctor?.user?.name || appointment?.doctor?.name || 'Doctor'}</h4>
+                      <p className="text-sm text-gray-600">{appointment?.type || ''}</p>
+                      <p className="text-sm text-gray-600">Hospital: {appointment?.hospitalId?.name || appointment?.hospitalId || 'N/A'}</p>
                       <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
