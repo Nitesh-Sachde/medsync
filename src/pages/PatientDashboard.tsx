@@ -9,6 +9,7 @@ import { useAuth } from '../lib/authContext';
 import { useNavigate } from 'react-router-dom';
 import BookAppointmentForm from '../components/BookAppointmentForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { formatDateDMY } from '@/lib/utils';
 
 const PatientDashboard = () => {
   const { user, logout } = useAuth();
@@ -162,7 +163,7 @@ const PatientDashboard = () => {
                       <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
-                          {appointment?.date || ''}
+                          {formatDateDMY(appointment?.date)}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
@@ -195,7 +196,7 @@ const PatientDashboard = () => {
                     <div>
                       <h4 className="font-medium">{prescription?.medication || 'Medication'}</h4>
                       <p className="text-sm text-gray-600">Prescribed by {prescription?.doctor?.name || 'Doctor'}</p>
-                      <p className="text-sm text-gray-500">{prescription?.date || ''}</p>
+                      <p className="text-sm text-gray-500">{formatDateDMY(prescription?.date)}</p>
                     </div>
                     <Badge variant={prescription?.status === 'active' ? 'default' : 'secondary'}>
                       {prescription?.status || 'unknown'}
@@ -221,7 +222,7 @@ const PatientDashboard = () => {
                   <div key={result.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{result?.test || 'Test'}</h4>
-                      <p className="text-sm text-gray-500">{result?.date || ''}</p>
+                      <p className="text-sm text-gray-500">{formatDateDMY(result?.date)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={result?.status === 'ready' ? 'default' : 'secondary'}>

@@ -4,8 +4,8 @@ const patientController = require('../controllers/patientController');
 const auth = require('../middleware/auth');
 const role = require('../middleware/role');
 
-// Create patient (admin, receptionist)
-router.post('/', auth, role(['admin', 'receptionist']), patientController.createPatient);
+// Create patient (admin, receptionist, doctor)
+router.post('/', auth, role(['admin', 'receptionist', 'doctor']), patientController.createPatient);
 // Get all patients (admin, doctor, receptionist)
 router.get('/', auth, role(['admin', 'doctor', 'receptionist']), patientController.getPatients);
 // Get single patient (self, doctor, admin, receptionist)

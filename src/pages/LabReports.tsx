@@ -6,6 +6,7 @@ import { useAuth } from '../lib/authContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
+import { formatDateDMY } from '@/lib/utils';
 
 const LabReports = () => {
   const { user } = useAuth();
@@ -36,7 +37,7 @@ const LabReports = () => {
     doc.setFontSize(12);
     doc.text(`Patient: ${report.patient?.user?.name || 'Unknown'}`, 10, 30);
     doc.text(`Test: ${report.test}`, 10, 40);
-    doc.text(`Date: ${report.date}`, 10, 50);
+    doc.text(`Date: ${formatDateDMY(report.date)}`, 10, 50);
     doc.text(`Status: ${report.status}`, 10, 60);
     doc.text(`Result: ${report.result || 'N/A'}`, 10, 70);
     doc.text(`Issued by: ${report.doctor?.user?.name || 'N/A'}`, 10, 80);
@@ -58,7 +59,7 @@ const LabReports = () => {
               <CardTitle>{report.test}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-2 text-sm text-gray-600">Date: {report.date}</div>
+              <div className="mb-2 text-sm text-gray-600">Date: {formatDateDMY(report.date)}</div>
               <div className="mb-2 text-sm text-gray-600">Status: {report.status}</div>
               <div className="mb-2 text-sm text-gray-600">Result: {report.result || 'N/A'}</div>
               <div className="mb-2 text-sm text-gray-600">Issued by: {report.doctor?.user?.name || 'N/A'}</div>

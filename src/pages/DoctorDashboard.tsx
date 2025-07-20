@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
+import NewConsultationModal from '../components/NewConsultationModal';
+import jsPDF from 'jspdf';
+import { formatDateDMY } from '@/lib/utils';
 
 const DoctorDashboard = () => {
   // All hooks at the top
@@ -69,9 +72,18 @@ const DoctorDashboard = () => {
   const [appointmentFilter, setAppointmentFilter] = useState('upcoming');
   const [appointmentSearch, setAppointmentSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [showPatientDetailModal, setShowPatientDetailModal] = useState(false);
   const [showPatientHistoryModal, setShowPatientHistoryModal] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const [patientHistory, setPatientHistory] = useState<any[]>([]);
   const [patientHistoryLoading, setPatientHistoryLoading] = useState(false);
+  // Add state for Medical Records modal (move above all useEffect)
+  const [showMedicalRecordsModal, setShowMedicalRecordsModal] = useState(false);
+  const [selectedMedicalRecordsPatient, setSelectedMedicalRecordsPatient] = useState<any>(null);
+  const [medicalRecordsLabReports, setMedicalRecordsLabReports] = useState<any[]>([]);
+  const [medicalRecordsLabReportsLoading, setMedicalRecordsLabReportsLoading] = useState(false);
+  // Add state for Medical Records search
+  const [medicalRecordsSearch, setMedicalRecordsSearch] = useState('');
 
   // Add state for multi-step modal
   const [selectedExistingPatient, setSelectedExistingPatient] = useState<any>(null);
@@ -91,7 +103,9 @@ const DoctorDashboard = () => {
       const apptRes = await request('/appointments/doctor');
       setAppointments(apptRes.appointments);
       const patientRes = await request('/patients');
-      const myPatients = patientRes.patients.filter((p: any) => apptRes.appointments.some((a: any) => a.patient.user === p.user));
+      // Only show patients related to this doctor
+      const doctorPatientIds = new Set(apptRes.appointments.map((a: any) => a.patient && (a.patient._id || a.patient.id)));
+      const myPatients = patientRes.patients.filter((p: any) => doctorPatientIds.has(p._id || p.id));
       setPatients(myPatients);
       const today = new Date().toISOString().slice(0, 10);
       const todayAppointments = apptRes.appointments.filter((a: any) => a.date === today);
@@ -187,6 +201,25 @@ const DoctorDashboard = () => {
     };
     fetchPrescriptions();
   }, [showPrescriptionsModal, doctor]);
+
+  // Medical Records lab reports fetcher - must be at top level
+  useEffect(() => {
+    if (!showMedicalRecordsModal || !selectedMedicalRecordsPatient) return;
+    setMedicalRecordsLabReportsLoading(true);
+    setMedicalRecordsLabReports([]);
+    request('/labreports')
+      .then(res => {
+        const filtered = res.labReports.filter((l: any) => {
+          return (
+            l.patient &&
+            ((l.patient._id || l.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id))
+          );
+        });
+        setMedicalRecordsLabReports(filtered);
+      })
+      .catch(() => setMedicalRecordsLabReports([]))
+      .finally(() => setMedicalRecordsLabReportsLoading(false));
+  }, [showMedicalRecordsModal, selectedMedicalRecordsPatient]);
 
   // Place loading and error returns AFTER all hooks
   if (loading) return (
@@ -407,6 +440,121 @@ const DoctorDashboard = () => {
   const addMedicine = () => setConsultDetails(prev => ({ ...prev, medicines: [...prev.medicines, { name: '', dosage: '', duration: '' }] }));
   const removeMedicine = (idx: number) => setConsultDetails(prev => ({ ...prev, medicines: prev.medicines.filter((_, i) => i !== idx) }));
 
+  // Add this function inside DoctorDashboard component
+  const handleDownloadPrescriptionPDF = async (prescription) => {
+    const doc = new jsPDF();
+    // Add MedSync logo (assume public/medsync_logo.png)
+    const logoUrl = '/medsync_logo.png';
+    // Load image as base64
+    const getImageBase64 = (url) => new Promise((resolve) => {
+      const img = new window.Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = function () {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.src = url;
+    });
+    const logoBase64 = await getImageBase64(logoUrl);
+    doc.addImage(logoBase64, 'PNG', 12, 8, 18, 18);
+
+    // Header
+    doc.setFontSize(16);
+    doc.text('MedSync Hospital', 105, 16, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('123, MedSync Center, City, State, 123456', 105, 21, { align: 'center' });
+    doc.text('Phone: +91-1234567890 | Email: info@medsync.com', 105, 25, { align: 'center' });
+    doc.setLineWidth(0.5);
+    doc.line(10, 28, 200, 28);
+
+    // Doctor Info
+    doc.setFontSize(11);
+    doc.text(`Dr. ${prescription.doctor?.user?.name || 'Doctor Name'}`, 12, 34);
+    doc.text('Reg. No: 123456', 12, 39);
+    doc.text('Specialist: General Medicine', 12, 44);
+
+    // Patient Info
+    doc.text(`Patient: ${prescription.patient?.user?.name || prescription.patient?.name || 'Unknown'}`, 120, 34);
+    doc.text(`Date: ${prescription.date || ''}`, 120, 39);
+    doc.text(`Status: ${prescription.status || ''}`, 120, 44);
+
+    // Diagnosis & Notes
+    let y = 50;
+    if (prescription.diagnosis) {
+      doc.setFontSize(11);
+      doc.text('Diagnosis:', 12, y);
+      doc.setFont('helvetica', 'italic');
+      doc.text(prescription.diagnosis, 35, y);
+      doc.setFont('helvetica', 'normal');
+      y += 6;
+    }
+    if (prescription.notes) {
+      doc.setFontSize(11);
+      doc.text('Notes:', 12, y);
+      doc.setFont('helvetica', 'italic');
+      doc.text(prescription.notes, 30, y);
+      doc.setFont('helvetica', 'normal');
+      y += 6;
+    }
+
+    // Medicines Table
+    doc.setFontSize(12);
+    doc.text('Prescription:', 12, y);
+    y += 4;
+    doc.setFontSize(10);
+    doc.setFillColor(220, 220, 220);
+    doc.rect(12, y, 186, 8, 'F');
+    doc.text('Medicine', 15, y + 6);
+    doc.text('Dosage', 70, y + 6);
+    doc.text('Duration', 110, y + 6);
+    doc.text('Instructions', 150, y + 6);
+    y += 10;
+    const meds = (prescription.medication || '').split(',').map(m => m.trim());
+    meds.forEach((med, idx) => {
+      // Try to split: Name (Dosage, Duration)
+      const match = med.match(/^(.*?) \((.*?), (.*?)\)$/);
+      let name = med, dosage = '', duration = '', instr = '';
+      if (match) {
+        name = match[1];
+        dosage = match[2];
+        duration = match[3];
+      }
+      doc.text(name, 15, y);
+      doc.text(dosage, 70, y);
+      doc.text(duration, 110, y);
+      doc.text(instr, 150, y);
+      y += 7;
+    });
+
+    // Footer
+    y += 10;
+    doc.setLineWidth(0.2);
+    doc.line(12, 265, 198, 265);
+    doc.setFontSize(10);
+    doc.text('Doctor Signature:', 15, 270);
+    doc.text('This is a computer-generated prescription. Signature not required.', 105, 278, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setTextColor(0, 102, 204);
+    doc.text('Powered by MedSync', 170, 278, { align: 'right' });
+
+    doc.save(`E-Prescription_${prescription.patient?.user?.name || prescription.patient?.name || 'Unknown'}_${prescription.date || ''}.pdf`);
+  };
+
+  // In the recent patients section, sort patients descending by last appointment date
+  const sortedPatients = [...patients].sort((a, b) => {
+    // Find the most recent appointment for each patient
+    const aLast = appointments.filter(ap => (ap.patient._id || ap.patient.id) === (a._id || a.id)).sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
+    const bLast = appointments.filter(ap => (ap.patient._id || ap.patient.id) === (b._id || b.id)).sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
+    const aDate = aLast ? new Date(aLast.date).getTime() : 0;
+    const bDate = bLast ? new Date(bLast.date).getTime() : 0;
+    return bDate - aDate;
+  });
+  // Use sortedPatients instead of patients in the recent patients list
+
   // The rest of the component logic and JSX
   return (
     <div className="min-h-screen bg-gray-50">
@@ -510,218 +658,24 @@ const DoctorDashboard = () => {
             onClick={() => setAppointmentFilter('today')}
           >
             <Clock className="h-5 w-5 mb-1" />
-            Today's Schedule
+            Schedule
           </Button>
-          <Dialog open={showConsultModal} onOpenChange={setShowConsultModal}>
-            <DialogTrigger asChild>
-              <Button
-                className={`h-16 medical-gradient text-white flex flex-col items-center justify-center ${showConsultModal ? 'ring-2 ring-blue-400' : ''}`}
-                onClick={() => setShowConsultModal(true)}
-              >
-                <Stethoscope className="h-5 w-5 mb-1" />
-                New Consultation
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-full md:max-w-2xl w-full p-4 md:p-8 overflow-y-auto max-h-[90vh]">
-              <DialogHeader>
-                <DialogTitle>New Consultation</DialogTitle>
-              </DialogHeader>
-              {consultStep === 1 && (
-                <div className="space-y-6">
-                  <div className="flex flex-col md:flex-row gap-4 mb-4">
-                    <button className={`px-4 py-2 rounded ${consultPatientType === 'pending' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`} onClick={() => setConsultPatientType('pending')}>Select Pending Appointment</button>
-                    <button className={`px-4 py-2 rounded ${consultPatientType === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`} onClick={() => setConsultPatientType('existing')}>Select Existing Patient</button>
-                    <button className={`px-4 py-2 rounded ${consultPatientType === 'new' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`} onClick={() => setConsultPatientType('new')}>Create New Patient</button>
-                  </div>
-                  {consultPatientType === 'pending' && (
-                    <div>
-                      <label className="block font-semibold mb-2">Pending Appointments</label>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {appointments.filter(a => a.status === 'pending').length === 0 && <div className="text-gray-500">No pending appointments.</div>}
-                        {appointments.filter(a => a.status === 'pending').map(a => (
-                          <div key={a._id} className={`p-3 rounded border flex items-center justify-between ${selectedPendingAppointment?._id === a._id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}> 
-                            <div>
-                              <div className="font-medium">{a.patient?.user?.name || a.patient?.name || 'Unknown'}</div>
-                              <div className="text-sm text-gray-500">{a.date} {a.time}</div>
-                            </div>
-                            <button className="px-3 py-1 rounded bg-blue-500 text-white" onClick={() => setSelectedPendingAppointment(a)}>Select</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {consultPatientType === 'existing' && (
-                    <div>
-                      <label className="block font-semibold mb-2">Search Patient</label>
-                      <input type="text" className="w-full rounded border px-3 py-2 mb-2" placeholder="Search by name or email..." onChange={e => {
-                        const val = e.target.value.toLowerCase();
-                        setSelectedExistingPatient(patients.find(p => (p.name || p.user?.name || '').toLowerCase().includes(val) || (p.user?.email || '').toLowerCase().includes(val)) || null);
-                      }} />
-                      {selectedExistingPatient && (
-                        <div className="p-3 rounded border border-blue-500 bg-blue-50 mt-2">
-                          <div className="font-medium">{selectedExistingPatient.name || selectedExistingPatient.user?.name}</div>
-                          <div className="text-sm text-gray-500">{selectedExistingPatient.user?.email}</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {consultPatientType === 'new' && (
-                    <div className="space-y-2">
-                      <label className="block font-semibold mb-2">New Patient Details</label>
-                      <input type="text" className="w-full rounded border px-3 py-2" placeholder="Name" value={newPatientForm.name} onChange={e => setNewPatientForm(f => ({ ...f, name: e.target.value }))} />
-                      <input type="email" className="w-full rounded border px-3 py-2" placeholder="Email" value={newPatientForm.email} onChange={e => setNewPatientForm(f => ({ ...f, email: e.target.value }))} />
-                      <input type="text" className="w-full rounded border px-3 py-2" placeholder="Contact" value={newPatientForm.contact} onChange={e => setNewPatientForm(f => ({ ...f, contact: e.target.value }))} />
-                    </div>
-                  )}
-                  <div className="flex justify-end gap-2 mt-6">
-                    <button className="px-4 py-2 rounded bg-gray-200" onClick={() => setShowConsultModal(false)}>Cancel</button>
-                    <button className="px-4 py-2 rounded bg-blue-600 text-white" onClick={() => setConsultStep(2)} disabled={
-                      (consultPatientType === 'pending' && !selectedPendingAppointment) ||
-                      (consultPatientType === 'existing' && !selectedExistingPatient) ||
-                      (consultPatientType === 'new' && (!newPatientForm.name || !newPatientForm.email || !newPatientForm.contact))
-                    }>Next</button>
-                  </div>
-                </div>
-              )}
-              {consultStep === 2 && (
-                <div>
-                  <form
-                    className="space-y-4"
-                    onSubmit={async e => {
-                      e.preventDefault();
-                      setConsultLoading(true);
-                      setConsultError('');
-                      setConsultSuccess('');
-                      try {
-                        let patientId = '';
-                        // Create new patient if needed
-                        if (consultPatientType === 'new') {
-                          const res = await request('/patients', {
-                            method: 'POST',
-                            body: JSON.stringify(newPatientForm)
-                          });
-                          patientId = res.patient._id || res.patient.id;
-                        } else if (consultPatientType === 'pending') {
-                          patientId = selectedPendingAppointment.patient._id || selectedPendingAppointment.patient.id;
-                        } else if (consultPatientType === 'existing') {
-                          patientId = selectedExistingPatient._id || selectedExistingPatient.id;
-                        }
-                        // Create appointment
-                        let appointmentId = '';
-                        let appointmentDate = '';
-                        let appointmentTime = '';
-                        if (consultPatientType === 'pending') {
-                          appointmentId = selectedPendingAppointment._id;
-                          appointmentDate = selectedPendingAppointment.date;
-                          appointmentTime = selectedPendingAppointment.time;
-                        } else {
-                          const apptRes = await request('/appointments', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                              patient: patientId,
-                              doctor: doctor._id || doctor.id,
-                              hospitalId: doctor.user?.hospitalId,
-                              date: new Date().toISOString().slice(0, 10),
-                              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                              status: 'confirmed',
-                              type: 'Consultation',
-                              notes: consultDetails.notes
-                            })
-                          });
-                          appointmentId = apptRes.appointment._id || apptRes.appointment.id;
-                          appointmentDate = apptRes.appointment.date;
-                          appointmentTime = apptRes.appointment.time;
-                        }
-                        // Create prescription
-                        await request('/prescriptions', {
-                          method: 'POST',
-                          body: JSON.stringify({
-                            patient: patientId,
-                            doctor: doctor._id || doctor.id,
-                            hospitalId: doctor.user?.hospitalId,
-                            medication: consultDetails.medicines.map(m => `${m.name} (${m.dosage}, ${m.duration})`).join(', '),
-                            quantity: consultDetails.medicines.length,
-                            date: appointmentDate,
-                            status: 'active'
-                          })
-                        });
-                        setConsultSuccess('Consultation and prescription created successfully!');
-                        setShowConsultModal(false);
-                        setConsultStep(1);
-                        setConsultDetails({ diagnosis: '', notes: '', medicines: [{ name: '', dosage: '', duration: '' }] });
-                        setNewPatientForm({ name: '', contact: '', email: '' });
-                        setSelectedPendingAppointment(null);
-                        setSelectedExistingPatient(null);
-                        await refreshAppointments();
-                      } catch (err: any) {
-                        setConsultError(err.message || 'Failed to create consultation.');
-                      } finally {
-                        setConsultLoading(false);
-                      }
-                    }}
-                  >
-                    <div className="mb-4 w-full">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Diagnosis</label>
-                      <textarea
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        value={consultDetails.diagnosis}
-                        onChange={e => setConsultDetails(prev => ({ ...prev, diagnosis: e.target.value }))}
-                        placeholder="Enter diagnosis..."
-                        rows={2}
-                      />
-                    </div>
-                    <div className="mb-4 w-full">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Medicines</label>
-                      <div className="space-y-2">
-                        {consultDetails.medicines.map((med, idx) => (
-                          <div key={idx} className="flex flex-col md:flex-row gap-2 items-center">
-                            <input
-                              className="w-full md:w-1/3 rounded-md border border-gray-300 px-3 py-2"
-                              placeholder="Medicine Name"
-                              value={med.name}
-                              onChange={e => handleMedicineChange(idx, 'name', e.target.value)}
-                            />
-                            <input
-                              className="w-full md:w-1/3 rounded-md border border-gray-300 px-3 py-2"
-                              placeholder="Dosage"
-                              value={med.dosage}
-                              onChange={e => handleMedicineChange(idx, 'dosage', e.target.value)}
-                            />
-                            <input
-                              className="w-full md:w-1/3 rounded-md border border-gray-300 px-3 py-2"
-                              placeholder="Duration"
-                              value={med.duration}
-                              onChange={e => handleMedicineChange(idx, 'duration', e.target.value)}
-                            />
-                            {consultDetails.medicines.length > 1 && (
-                              <button type="button" className="text-red-500 ml-2" onClick={() => removeMedicine(idx)}>Remove</button>
-                            )}
-                          </div>
-                        ))}
-                        <button type="button" className="mt-2 px-3 py-1 rounded bg-green-500 text-white" onClick={addMedicine}>Add Medicine</button>
-                      </div>
-                    </div>
-                    <div className="mb-4 w-full">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Notes</label>
-                      <textarea
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        value={consultDetails.notes}
-                        onChange={e => setConsultDetails(prev => ({ ...prev, notes: e.target.value }))}
-                        placeholder="Enter notes..."
-                        rows={2}
-                      />
-                    </div>
-                    {consultError && <div className="text-red-500 text-sm mb-2">{consultError}</div>}
-                    {consultSuccess && <div className="text-green-600 text-sm mb-2">{consultSuccess}</div>}
-                    <div className="flex justify-between mt-6">
-                      <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={() => setConsultStep(1)}>Back</button>
-                      <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white" disabled={consultLoading}>{consultLoading ? 'Creating...' : 'Submit'}</button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
+          <Button
+            variant={showConsultModal ? 'default' : 'outline'}
+            className={`h-16 flex flex-col items-center justify-center ${showConsultModal ? 'ring-2 ring-blue-400' : ''}`}
+            onClick={() => setShowConsultModal(true)}
+          >
+            <Stethoscope className="h-5 w-5 mb-1" />
+            New Consultation
+          </Button>
+          <NewConsultationModal
+            open={showConsultModal}
+            onOpenChange={setShowConsultModal}
+            patients={patients}
+            appointments={appointments}
+            doctor={doctor}
+            refreshAppointments={refreshAppointments}
+          />
           <Dialog open={showPrescriptionsModal} onOpenChange={setShowPrescriptionsModal}>
             <DialogTrigger asChild>
               <Button
@@ -744,76 +698,7 @@ const DoctorDashboard = () => {
                   onChange={e => setPrescriptionSearch(e.target.value)}
                   className="flex-1"
                 />
-                <Button className="medical-gradient text-white" type="button" onClick={() => setShowCreatePrescription((v) => !v)}>
-                  {showCreatePrescription ? 'Cancel' : 'Create Prescription'}
-                </Button>
               </div>
-              {showCreatePrescription && (
-                <form onSubmit={handleCreatePrescriptionSubmit} className="mb-6 space-y-3 bg-gray-50 p-4 rounded-lg border">
-                  <div className="flex gap-2">
-                    <FormItem className="flex-1">
-                      <FormLabel>Patient</FormLabel>
-                      <Select value={createPrescriptionForm.patient} onValueChange={v => handleCreatePrescriptionChange('patient', v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select patient" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {patientOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                    <FormItem className="flex-1">
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" value={createPrescriptionForm.date} onChange={e => handleCreatePrescriptionChange('date', e.target.value)} required />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  </div>
-                  <div className="flex gap-2">
-                    <FormItem className="flex-1">
-                      <FormLabel>Medication</FormLabel>
-                      <FormControl>
-                        <Input value={createPrescriptionForm.medication} onChange={e => handleCreatePrescriptionChange('medication', e.target.value)} required />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                    <FormItem className="flex-1">
-                      <FormLabel>Quantity</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="1" value={createPrescriptionForm.quantity} onChange={e => handleCreatePrescriptionChange('quantity', e.target.value)} required />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  </div>
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select value={createPrescriptionForm.status} onValueChange={v => handleCreatePrescriptionChange('status', v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="ready">Ready</SelectItem>
-                        <SelectItem value="dispensing">Dispensing</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                  {createPrescriptionError && <div className="text-red-500 text-sm">{createPrescriptionError}</div>}
-                  {createPrescriptionSuccess && <div className="text-green-600 text-sm">{createPrescriptionSuccess}</div>}
-                  <DialogFooter>
-                    <Button type="submit" className="medical-gradient text-white" disabled={createPrescriptionLoading}>
-                      {createPrescriptionLoading ? 'Creating...' : 'Create Prescription'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              )}
               {prescriptionsLoading ? (
                 <div className="text-center py-8">Loading...</div>
               ) : prescriptionsError ? (
@@ -823,34 +708,144 @@ const DoctorDashboard = () => {
               ) : (
                 <div className="max-h-96 overflow-y-auto space-y-4">
                   {filteredPrescriptions.map((p: any) => (
-                    <Card key={p._id || p.id} className="border p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-semibold text-lg">{p.medication}</div>
-                          <div className="text-sm text-gray-600">Patient: {p.patient?.user?.name || p.patient?.name || 'Unknown'}</div>
-                          <div className="text-sm text-gray-600">Quantity: {p.quantity}</div>
-                          <div className="text-sm text-gray-600">Date: {p.date}</div>
+                    <div key={p._id || p.id} className="border p-4 rounded-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between mb-4 bg-white">
+                      <div className="flex-1">
+                        <div className="font-bold text-lg mb-1">{p.patient?.user?.name || p.patient?.name || 'Unknown'}</div>
+                        <div className="text-xs text-gray-500 mb-1">Date: {formatDateDMY(p.date)}</div>
+                        <div className="text-xs text-gray-500 mb-1">Quantity: {Array.isArray(p.medications) ? p.medications.length : (p.medications ? 1 : 0)}</div>
+                        {p.followUpDate && <div className="text-xs text-gray-500 mb-1">Follow-up: {formatDateDMY(p.followUpDate)}</div>}
+                        <div className="text-xs text-gray-500 mb-1">Status: <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold text-xs">{p.status}</span></div>
+                        <div className="mt-2">
+                          <div className="font-semibold text-sm mb-1">Medicines:</div>
+                          <ul className="list-disc ml-5 space-y-0.5">
+                            {Array.isArray(p.medications)
+                              ? p.medications.map((med: any, idx: number) => (
+                                  <li key={idx} className="text-xs">{typeof med === 'string' ? med : med.name}</li>
+                                ))
+                              : <li className="text-xs">{p.medications || 'N/A'}</li>}
+                          </ul>
                         </div>
-                        <Badge variant={p.status === 'completed' ? 'default' : p.status === 'pending' ? 'secondary' : 'outline'}>{p.status}</Badge>
                       </div>
-                    </Card>
+                      <div className="flex flex-col items-end mt-4 md:mt-0 md:ml-4">
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadPrescriptionPDF(p)}>
+                          Download as PDF
+                        </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
             </DialogContent>
           </Dialog>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button
+            variant="outline"
+            className="h-16 flex flex-col items-center justify-center"
+            onClick={() => setShowMedicalRecordsModal(true)}
+          >
             <FileText className="h-5 w-5 mb-1" />
             Medical Records
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
-            <Activity className="h-5 w-5 mb-1" />
-            Lab Reports
-          </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
-            <Calendar className="h-5 w-5 mb-1" />
-            Schedule
-          </Button>
+          <Dialog open={showPatientHistoryModal} onOpenChange={setShowPatientHistoryModal}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Recent Patients</DialogTitle>
+              </DialogHeader>
+              <div className="mb-2">
+                <Input
+                  placeholder="Search by name or email..."
+                  value={appointmentSearch}
+                  onChange={e => setAppointmentSearch(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="max-h-96 overflow-y-auto space-y-2 mt-2">
+                {filteredAppointments.length === 0 ? (
+                  <div className="text-gray-500 text-center">No recent patients found.</div>
+                ) : (
+                  filteredAppointments.map((apt) => {
+                    const p = apt.patient;
+                    return (
+                      <button
+                        key={p._id || p.id}
+                        className="border rounded p-3 flex flex-col text-left w-full hover:bg-gray-50 focus:outline-none"
+                        onClick={() => {
+                          setSelectedPatient(p);
+                          setShowPatientDetailModal(true);
+                        }}
+                      >
+                        <span className="font-medium">{p.name || p.user?.name}</span>
+                        <span className="text-xs text-gray-500">{p.user?.email}</span>
+                        {p.user?.contact && <span className="text-xs text-gray-500">{p.user?.contact}</span>}
+                        <span className="text-xs text-gray-400 mt-1">Last Visit: {formatDateDMY(apt.date)} {apt.time}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+          {/* Patient Detail Modal */}
+          <Dialog open={showPatientDetailModal} onOpenChange={setShowPatientDetailModal}>
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Patient Details</DialogTitle>
+              </DialogHeader>
+              {selectedPatient ? (
+                <div>
+                  <div className="mb-2">
+                    <span className="font-semibold">Name:</span> {selectedPatient.name || selectedPatient.user?.name}
+                  </div>
+                  <div className="mb-2">
+                    <span className="font-semibold">Email:</span> {selectedPatient.user?.email}
+                  </div>
+                  {selectedPatient.user?.contact && (
+                    <div className="mb-2">
+                      <span className="font-semibold">Contact:</span> {selectedPatient.user?.contact}
+                    </div>
+                  )}
+                  {selectedPatient.user?.age && (
+                    <div className="mb-2">
+                      <span className="font-semibold">Age:</span> {selectedPatient.user?.age}
+                    </div>
+                  )}
+                  {selectedPatient.user?.gender && (
+                    <div className="mb-2">
+                      <span className="font-semibold">Gender:</span> {selectedPatient.user?.gender}
+                    </div>
+                  )}
+                  <div className="mt-4 mb-2 font-semibold">Appointments:</div>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {appointments.filter(a => (a.patient._id || a.patient.id) === (selectedPatient._id || selectedPatient.id)).length === 0 ? (
+                      <div className="text-gray-500">No appointments found.</div>
+                    ) : (
+                      appointments.filter(a => (a.patient._id || a.patient.id) === (selectedPatient._id || selectedPatient.id)).map(a => (
+                        <div key={a._id} className="border rounded p-2">
+                          <div className="text-sm font-medium">{formatDateDMY(a.date)} {a.time} - {a.type}</div>
+                          {a.diagnosis && <div className="text-xs text-gray-600">Diagnosis: {a.diagnosis}</div>}
+                          {a.notes && <div className="text-xs text-gray-600">Notes: {a.notes}</div>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="mt-4 mb-2 font-semibold">Prescriptions:</div>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {prescriptions.filter(pr => (pr.patient._id || pr.patient.id) === (selectedPatient._id || selectedPatient.id)).length === 0 ? (
+                      <div className="text-gray-500">No prescriptions found.</div>
+                    ) : (
+                      prescriptions.filter(pr => (pr.patient._id || pr.patient.id) === (selectedPatient._id || selectedPatient.id)).map(pr => (
+                        <div key={pr._id} className="border rounded p-2">
+                          <div className="text-sm font-medium">{formatDateDMY(pr.date)} - {pr.medication}</div>
+                          <div className="text-xs text-gray-600">Status: {pr.status}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-gray-500">No patient selected.</div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -903,7 +898,7 @@ const DoctorDashboard = () => {
                         <p className="text-sm text-gray-600">{appointment.type}</p>
                         <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
                           <Clock className="h-4 w-4" />
-                          {appointment.date} at {appointment.time}
+                          {formatDateDMY(appointment.date)} at {appointment.time}
                         </div>
                         {appointment.notes && (
                           <p className="text-sm text-gray-600 mt-1">
@@ -949,12 +944,12 @@ const DoctorDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {patients.length === 0 ? (
+                {sortedPatients.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     No patients found
                   </div>
                 ) : (
-                  patients.map((patient) => (
+                  sortedPatients.map((patient) => (
                     <div key={patient._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                       <div className="flex-1">
                         <h4 className="font-medium">{patient.user?.name || patient.name || 'Unknown Patient'}</h4>
@@ -1055,149 +1050,80 @@ const DoctorDashboard = () => {
             <DialogTitle>Manage Appointment</DialogTitle>
           </DialogHeader>
           {selectedAppointment && (
-            <div className="space-y-4">
-              {/* Patient Information */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Patient Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Name: </span>
-                    {selectedAppointment.patient?.user?.name || 'Unknown'}
-                  </div>
-                  <div>
-                    <span className="font-medium">Contact: </span>
-                    {selectedAppointment.patient?.user?.contact || 'N/A'}
-                  </div>
-                  <div>
-                    <span className="font-medium">Date: </span>
-                    {selectedAppointment.date}
-                  </div>
-                  <div>
-                    <span className="font-medium">Time: </span>
-                    {selectedAppointment.time}
-                  </div>
+            <form className="space-y-6" onSubmit={handleAppointmentUpdate}>
+              {/* Patient Info */}
+              <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                <div className="text-lg font-semibold mb-2 text-blue-700">Patient</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div><span className="font-medium">Name:</span> {selectedAppointment.patient?.user?.name || 'Unknown'}</div>
+                  <div><span className="font-medium">Contact:</span> {selectedAppointment.patient?.user?.contact || 'N/A'}</div>
+                  <div><span className="font-medium">Email:</span> {selectedAppointment.patient?.user?.email || 'N/A'}</div>
+                  {selectedAppointment.patient?.user?.age && <div><span className="font-medium">Age:</span> {selectedAppointment.patient?.user?.age}</div>}
+                  {selectedAppointment.patient?.user?.gender && <div><span className="font-medium">Gender:</span> {selectedAppointment.patient?.user?.gender}</div>}
                 </div>
               </div>
-              
-              {/* Update Form */}
-              <form onSubmit={handleAppointmentUpdate} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                  <div className="mb-4 w-full">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
-                    <select value={appointmentForm.status} onChange={e => setAppointmentForm({ ...appointmentForm, status: e.target.value })} className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900">
+              {/* Appointment Details */}
+              <div className="bg-white p-4 rounded-lg border mb-4">
+                <div className="text-lg font-semibold mb-2 text-blue-700">Appointment Details</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><span className="font-medium">Date:</span> {formatDateDMY(selectedAppointment.date)}</div>
+                  <div><span className="font-medium">Time:</span> {selectedAppointment.time}</div>
+                  <div><span className="font-medium">Type:</span> {selectedAppointment.type}</div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Status</label>
+                    <select
+                      className="w-full rounded border px-2 py-2"
+                      value={appointmentForm.status}
+                      onChange={e => setAppointmentForm(prev => ({ ...prev, status: e.target.value }))}
+                    >
                       <option value="pending">Pending</option>
                       <option value="confirmed">Confirmed</option>
-                      <option value="checked-in">Checked In</option>
                       <option value="in-progress">In Progress</option>
                       <option value="completed">Completed</option>
                       <option value="cancelled">Cancelled</option>
                       <option value="no-show">No Show</option>
                     </select>
                   </div>
-                  
-                  <div className="mb-4 w-full">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Treatment Progress</label>
-                    <select value={appointmentForm.treatmentProgress.status} onChange={e => setAppointmentForm({
-                      ...appointmentForm, 
-                      treatmentProgress: {...appointmentForm.treatmentProgress, status: e.target.value}
-                    })} className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900">
-                      <option value="not-started">Not Started</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="follow-up-required">Follow-up Required</option>
-                    </select>
+                </div>
+              </div>
+              {/* Notes/Consultation */}
+              <div className="bg-white p-4 rounded-lg border mb-4">
+                <div className="text-lg font-semibold mb-2 text-blue-700">Notes & Consultation</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Notes</label>
+                    <textarea
+                      className="w-full rounded border px-2 py-2"
+                      value={appointmentForm.notes}
+                      onChange={e => setAppointmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex flex-col justify-end items-end h-full mt-4 md:mt-0">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded bg-gradient-to-r from-[#1795d4] to-[#1ec98b] text-white font-semibold shadow-sm hover:from-[#1ec98b] hover:to-[#1795d4] focus:ring-2 focus:ring-blue-400 focus:outline-none transition-colors duration-200 mt-2 md:mt-0"
+                      style={{ minWidth: '180px' }}
+                      onClick={() => {
+                        setShowAppointmentModal(false);
+                        setShowConsultModal(true);
+                        setConsultPatientType('pending');
+                        setSelectedPendingAppointment(selectedAppointment);
+                      }}
+                    >
+                      Start Consultation
+                    </button>
                   </div>
                 </div>
-                
-                <div className="mb-4 w-full">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Diagnosis</label>
-                  <textarea 
-                    value={appointmentForm.diagnosis} 
-                    onChange={(e) => setAppointmentForm({...appointmentForm, diagnosis: e.target.value})}
-                    placeholder="Enter diagnosis..."
-                    rows={3}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                  />
-                </div>
-                
-                <div className="mb-4 w-full">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Doctor Notes</label>
-                  <textarea 
-                    value={appointmentForm.notes} 
-                    onChange={(e) => setAppointmentForm({...appointmentForm, notes: e.target.value})}
-                    placeholder="Enter notes..."
-                    rows={3}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                  />
-                </div>
-                
-                <div className="mb-4 w-full">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Progress Notes</label>
-                  <textarea 
-                    value={appointmentForm.treatmentProgress.progressNotes} 
-                    onChange={(e) => setAppointmentForm({
-                      ...appointmentForm, 
-                      treatmentProgress: {...appointmentForm.treatmentProgress, progressNotes: e.target.value}
-                    })}
-                    placeholder="Enter progress notes..."
-                    rows={3}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                  />
-                </div>
-                
-                <div className="mb-4 w-full">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Follow-up Date</label>
-                  <input 
-                    type="date" 
-                    value={appointmentForm.treatmentProgress.followUpDate} 
-                    onChange={(e) => setAppointmentForm({
-                      ...appointmentForm, 
-                      treatmentProgress: {...appointmentForm.treatmentProgress, followUpDate: e.target.value}
-                    })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                  />
-                </div>
-                
-                {appointmentUpdateError && (
-                  <div className="text-red-500 text-sm">{appointmentUpdateError}</div>
-                )}
-                
-                {appointmentUpdateSuccess && (
-                  <div className="text-green-600 text-sm">{appointmentUpdateSuccess}</div>
-                )}
-                
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowAppointmentModal(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="medical-gradient text-white" disabled={appointmentUpdateLoading}>
-                    {appointmentUpdateLoading ? 'Updating...' : 'Update Appointment'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={async () => {
-                      setAppointmentUpdateLoading(true);
-                      setAppointmentUpdateError('');
-                      try {
-                        await request(`/appointments/doctor/${selectedAppointment._id}`, {
-                          method: 'PUT',
-                          body: JSON.stringify({ ...appointmentForm, status: 'cancelled' })
-                        });
-                        setShowAppointmentModal(false);
-                        await refreshAppointments();
-                      } catch (err: any) {
-                        setAppointmentUpdateError(err.message || 'Failed to cancel appointment');
-                      } finally {
-                        setAppointmentUpdateLoading(false);
-                      }
-                    }}
-                  >
-                    Cancel Appointment
-                  </Button>
-                </DialogFooter>
-              </form>
-            </div>
+              </div>
+              {/* Save/Cancel Buttons */}
+              <div className="flex flex-col md:flex-row justify-end gap-2 mt-8">
+                <button type="button" className="w-full md:w-auto px-4 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300" onClick={() => setShowAppointmentModal(false)}>Cancel</button>
+                <button type="submit" className="w-full md:w-auto px-4 py-2 rounded bg-gradient-to-r from-[#1795d4] to-[#1ec98b] text-white font-semibold shadow-sm hover:from-[#1ec98b] hover:to-[#1795d4] focus:ring-2 focus:ring-blue-400 focus:outline-none transition-colors duration-200" disabled={appointmentUpdateLoading}>
+                  {appointmentUpdateLoading ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>
@@ -1260,7 +1186,7 @@ const DoctorDashboard = () => {
                           <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
-                              {appointment.date}
+                              {formatDateDMY(appointment.date)}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
@@ -1293,6 +1219,217 @@ const DoctorDashboard = () => {
               )}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Medical Records Modal */}
+      <Dialog open={showMedicalRecordsModal} onOpenChange={setShowMedicalRecordsModal}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Medical Records</DialogTitle>
+          </DialogHeader>
+          <div className="mb-4">
+            <Input
+              placeholder="Search by name or email..."
+              value={medicalRecordsSearch}
+              onChange={e => setMedicalRecordsSearch(e.target.value)}
+              className="mb-2"
+            />
+            <Select
+              value={selectedMedicalRecordsPatient?._id || selectedMedicalRecordsPatient?.id || ''}
+              onValueChange={v => {
+                const p = patients.find((p: any) => (p._id || p.id) === v);
+                setSelectedMedicalRecordsPatient(p);
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select patient" />
+              </SelectTrigger>
+              <SelectContent>
+                {patients
+                  .filter(p => {
+                    const name = p.name || p.user?.name || '';
+                    const email = p.user?.email || '';
+                    return (
+                      name.toLowerCase().includes(medicalRecordsSearch.toLowerCase()) ||
+                      email.toLowerCase().includes(medicalRecordsSearch.toLowerCase())
+                    );
+                  })
+                  .slice()
+                  .sort((a, b) => {
+                    // Find last appointment date for each patient
+                    const aLast = appointments.filter(ap => (ap.patient._id || ap.patient.id) === (a._id || a.id)).sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
+                    const bLast = appointments.filter(ap => (ap.patient._id || ap.patient.id) === (b._id || b.id)).sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
+                    const aDate = aLast ? new Date(aLast.date).getTime() : 0;
+                    const bDate = bLast ? new Date(bLast.date).getTime() : 0;
+                    return bDate - aDate;
+                  })
+                  .map((p: any) => (
+                    <SelectItem key={p._id || p.id} value={p._id || p.id}>
+                      {p.name || p.user?.name || 'Patient'}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {selectedMedicalRecordsPatient ? (
+            <div className="space-y-6">
+              {/* Patient Info */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium mb-2">Patient Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="font-medium">Name: </span>{selectedMedicalRecordsPatient.user?.name || selectedMedicalRecordsPatient.name || 'Unknown'}</div>
+                  <div><span className="font-medium">Contact: </span>{selectedMedicalRecordsPatient.user?.contact || 'N/A'}</div>
+                  <div><span className="font-medium">Email: </span>{selectedMedicalRecordsPatient.user?.email || 'N/A'}</div>
+                  <div><span className="font-medium">Age: </span>{selectedMedicalRecordsPatient.user?.age || 'N/A'}</div>
+                  <div><span className="font-medium">Gender: </span>{selectedMedicalRecordsPatient.user?.gender || 'N/A'}</div>
+                  <div><span className="font-medium">Health Summary: </span>{selectedMedicalRecordsPatient.healthSummary || 'N/A'}</div>
+                </div>
+              </div>
+              {/* Appointments */}
+              <h3 className="font-medium mb-2">Appointments</h3>
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {appointments.filter(a => (a.patient._id || a.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).length === 0 ? (
+                  <div className="text-gray-500">No appointments found.</div>
+                ) : (
+                  appointments.filter(a => (a.patient._id || a.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).map(a => (
+                    <div key={a._id} className="border rounded p-2">
+                      <div className="text-sm font-medium">{formatDateDMY(a.date)} {a.time} - {a.type}</div>
+                      {a.diagnosis && <div className="text-xs text-gray-600">Diagnosis: {a.diagnosis}</div>}
+                      {a.notes && <div className="text-xs text-gray-600">Notes: {a.notes}</div>}
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Prescriptions */}
+              <h3 className="font-medium mb-2">Prescriptions</h3>
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {prescriptions.filter(pr => (pr.patient._id || pr.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).length === 0 ? (
+                  <div className="text-gray-500">No prescriptions found.</div>
+                ) : (
+                  prescriptions.filter(pr => (pr.patient._id || pr.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).map(pr => (
+                    <div key={pr._id} className="border rounded p-2">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="text-sm font-medium">{formatDateDMY(pr.date)}</div>
+                          <div className="text-xs text-gray-600">Status: {pr.status}</div>
+                          <div className="text-xs text-gray-600">Doctor: {pr.doctor?.user?.name || 'Unknown'}</div>
+                        </div>
+                        <Button size="sm" variant="outline" className="mt-2 md:mt-0" onClick={() => handleDownloadPrescriptionPDF(pr)}>
+                          Download as PDF
+                        </Button>
+                      </div>
+                      <div className="mt-2">
+                        <div className="font-semibold text-xs mb-1">Medicines:</div>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-xs border rounded">
+                            <thead>
+                              <tr className="bg-gray-100">
+                                <th className="px-2 py-1 border">Name</th>
+                                <th className="px-2 py-1 border">Qty</th>
+                                <th className="px-2 py-1 border">Dosage</th>
+                                <th className="px-2 py-1 border">Frequency</th>
+                                <th className="px-2 py-1 border">Timing</th>
+                                <th className="px-2 py-1 border">Duration</th>
+                                <th className="px-2 py-1 border">Food</th>
+                                <th className="px-2 py-1 border">Instructions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.isArray(pr.medications) && pr.medications.length > 0 ? (
+                                pr.medications.map((med: any, idx: number) => (
+                                  <tr key={idx} className="border-t">
+                                    <td className="px-2 py-1 border">{med.name || 'N/A'}</td>
+                                    <td className="px-2 py-1 border">{med.quantity || 'N/A'}</td>
+                                    <td className="px-2 py-1 border">{med.dosage || 'N/A'}</td>
+                                    <td className="px-2 py-1 border">{med.frequency || 'N/A'}</td>
+                                    <td className="px-2 py-1 border">{Array.isArray(med.timing) ? med.timing.join(', ') : med.timing || 'N/A'}</td>
+                                    <td className="px-2 py-1 border">{med.duration || 'N/A'}</td>
+                                    <td className="px-2 py-1 border">{med.food || 'N/A'}</td>
+                                    <td className="px-2 py-1 border">{med.instructions || 'N/A'}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr><td colSpan={8} className="px-2 py-1 text-center">N/A</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {pr.diagnosis && (
+                          <div className="mt-2 text-xs"><span className="font-semibold">Diagnosis:</span> {pr.diagnosis}</div>
+                        )}
+                        {pr.notes && (
+                          <div className="mt-1 text-xs"><span className="font-semibold">Notes:</span> {pr.notes}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Lab Reports */}
+              <h3 className="font-medium mb-2">Lab Reports</h3>
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {medicalRecordsLabReportsLoading ? (
+                  <div className="text-gray-500">Loading lab reports...</div>
+                ) : medicalRecordsLabReports.length === 0 ? (
+                  <div className="text-gray-500">No lab reports found.</div>
+                ) : (
+                  medicalRecordsLabReports.map(report => (
+                    <div key={report._id} className="border rounded p-2">
+                      <div className="text-sm font-medium">{report.test}</div>
+                      <div className="text-xs text-gray-600">Date: {formatDateDMY(report.date)}</div>
+                      <div className="text-xs text-gray-600">Status: {report.status}</div>
+                      <div className="text-xs text-gray-600">Result: {report.result || 'N/A'}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-gray-500">Select a patient to view medical records.</div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Prescription Modal */}
+      <Dialog open={selectedPrescription !== null} onOpenChange={() => setSelectedPrescription(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">
+              {selectedPrescription?.patient?.user?.name || selectedPrescription?.patient?.name || 'Patient'}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedPrescription && (
+            <div className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <div><span className="font-semibold">Date:</span> {formatDateDMY(selectedPrescription.date)}</div>
+                <div><span className="font-semibold">Medicine Count:</span> {Array.isArray(selectedPrescription.medications) ? selectedPrescription.medications.length : (selectedPrescription.medications ? 1 : 0)}</div>
+                {selectedPrescription.followUpDate && (
+                  <div><span className="font-semibold">Follow-up Date:</span> {formatDateDMY(selectedPrescription.followUpDate)}</div>
+                )}
+                <div><span className="font-semibold">Status:</span> {selectedPrescription.status}</div>
+                <div><span className="font-semibold">Doctor:</span> {selectedPrescription.doctor?.user?.name || 'Unknown'}</div>
+              </div>
+              <div className="mt-4">
+                <div className="font-semibold mb-2">Medicines</div>
+                <ul className="list-disc ml-6 space-y-1">
+                  {Array.isArray(selectedPrescription.medications)
+                    ? selectedPrescription.medications.map((med: any, idx: number) => (
+                        <li key={idx} className="text-sm">{typeof med === 'string' ? med : med.name}</li>
+                      ))
+                    : <li className="text-sm">{selectedPrescription.medications || 'N/A'}</li>}
+                </ul>
+              </div>
+              <div className="mt-4">
+                <div className="font-semibold mb-2">Notes</div>
+                <div className="text-sm">{selectedPrescription.notes || 'N/A'}</div>
+              </div>
+              <div className="mt-4">
+                <div className="font-semibold mb-2">Diagnosis</div>
+                <div className="text-sm">{selectedPrescription.diagnosis || 'N/A'}</div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

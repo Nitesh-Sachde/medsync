@@ -7,7 +7,9 @@ exports.createPatient = async (req, res) => {
     const { name, email, password, contact, healthSummary } = req.body;
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
-    user = new User({ name, email, password, role: 'patient', contact });
+    // If password is not provided, generate a random one
+    const userPassword = password || Math.random().toString(36).slice(-8);
+    user = new User({ name, email, password: userPassword, role: 'patient', contact });
     await user.save();
     const patient = new Patient({ user: user._id, healthSummary });
     await patient.save();

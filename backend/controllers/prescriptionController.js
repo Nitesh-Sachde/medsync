@@ -5,11 +5,19 @@ const Doctor = require('../models/Doctor');
 // Create prescription (doctor, pharmacist)
 exports.createPrescription = async (req, res) => {
   try {
-    const { patient, doctor, medication, quantity, status, date } = req.body;
-    const prescription = new Prescription({ patient, doctor, medication, quantity, status, date });
+    console.log('--- Incoming prescription POST ---');
+    console.log('Body:', req.body);
+    const { patient, doctor, medications, medication, quantity, status, date, hospitalId } = req.body;
+    let prescription;
+    if (Array.isArray(medications) && medications.length > 0) {
+      prescription = new Prescription({ patient, doctor, medications, status, date, hospitalId });
+    } else {
+      prescription = new Prescription({ patient, doctor, medication, quantity, status, date, hospitalId });
+    }
     await prescription.save();
     res.status(201).json({ prescription });
   } catch (err) {
+    console.error('Prescription creation error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -18,7 +26,10 @@ exports.createPrescription = async (req, res) => {
 exports.getPrescriptions = async (req, res) => {
   try {
     const prescriptions = await Prescription.find()
-      .populate('patient')
+      .populate({
+        path: 'patient',
+        populate: { path: 'user' }
+      })
       .populate({ path: 'doctor', populate: { path: 'user' } })
       .populate('hospitalId');
     res.json({ prescriptions });
@@ -31,7 +42,10 @@ exports.getPrescriptions = async (req, res) => {
 exports.getPrescription = async (req, res) => {
   try {
     const prescription = await Prescription.findById(req.params.id)
-      .populate('patient')
+      .populate({
+        path: 'patient',
+        populate: { path: 'user' }
+      })
       .populate({ path: 'doctor', populate: { path: 'user' } })
       .populate('hospitalId');
     if (!prescription) return res.status(404).json({ message: 'Prescription not found' });
