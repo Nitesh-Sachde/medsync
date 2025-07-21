@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import BookAppointmentForm from '../components/BookAppointmentForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatDateDMY } from '@/lib/utils';
+import { generatePrescriptionPDF } from '@/lib/prescriptionPdf';
 
 const PatientDashboard = () => {
   const { user, logout } = useAuth();
@@ -22,6 +23,8 @@ const PatientDashboard = () => {
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [labResults, setLabResults] = useState<any[]>([]);
   const [showBookModal, setShowBookModal] = useState(false);
+  const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [showPrescriptionsModal, setShowPrescriptionsModal] = useState(false);
 
   // If user is not authenticated, show error and redirect option
   if (!user) {
@@ -41,22 +44,41 @@ const PatientDashboard = () => {
         // Fetch patient info by user ID
         const patientRes = await request(`/patients/by-user/${user?.id}`);
         setPatient(patientRes.patient);
-        console.log('Fetched patient:', patientRes.patient);
         // Fetch appointments for this patient
         const apptRes = await request('/appointments');
-        console.log('Fetched appointments:', apptRes.appointments);
         setAppointments(
-          apptRes.appointments.filter((a: any) => a?.patient?.user?.toString() === user?.id)
+          apptRes.appointments.filter((a: any) => {
+            const patientUser = a?.patient?.user;
+            if (!patientUser) return false;
+            if (typeof patientUser === 'object') {
+              return patientUser._id?.toString() === user?.id;
+            }
+            return patientUser?.toString() === user?.id;
+          })
         );
         // Fetch prescriptions for this patient
         const presRes = await request('/prescriptions');
         setPrescriptions(
-          presRes.prescriptions.filter((p: any) => p?.patient?.user === user?.id)
+          presRes.prescriptions.filter((p: any) => {
+            const patientUser = p?.patient?.user;
+            if (!patientUser) return false;
+            if (typeof patientUser === 'object') {
+              return patientUser._id?.toString() === user?.id;
+            }
+            return patientUser?.toString() === user?.id;
+          })
         );
-        // Fetch lab results for this patient
+        // Fetch lab results for this patient (not shown, but keep for future)
         const labRes = await request('/labreports');
         setLabResults(
-          labRes.labReports.filter((l: any) => l?.patient?.user === user?.id)
+          labRes.labReports.filter((l: any) => {
+            const patientUser = l?.patient?.user;
+            if (!patientUser) return false;
+            if (typeof patientUser === 'object') {
+              return patientUser._id?.toString() === user?.id;
+            }
+            return patientUser?.toString() === user?.id;
+          })
         );
       } catch (err: any) {
         setError(err.message);
@@ -73,9 +95,30 @@ const PatientDashboard = () => {
       setLoading(true);
       setError('');
       request(`/patients/by-user/${user?.id}`).then(patientRes => setPatient(patientRes.patient));
-      request('/appointments').then(apptRes => setAppointments(apptRes.appointments.filter((a: any) => a?.patient?.user?.toString() === user?.id)));
-      request('/prescriptions').then(presRes => setPrescriptions(presRes.prescriptions.filter((p: any) => p?.patient?.user === user?.id)));
-      request('/labreports').then(labRes => setLabResults(labRes.labReports.filter((l: any) => l?.patient?.user === user?.id)));
+      request('/appointments').then(apptRes => setAppointments(apptRes.appointments.filter((a: any) => {
+        const patientUser = a?.patient?.user;
+        if (!patientUser) return false;
+        if (typeof patientUser === 'object') {
+          return patientUser._id?.toString() === user?.id;
+        }
+        return patientUser?.toString() === user?.id;
+      })));
+      request('/prescriptions').then(presRes => setPrescriptions(presRes.prescriptions.filter((p: any) => {
+        const patientUser = p?.patient?.user;
+        if (!patientUser) return false;
+        if (typeof patientUser === 'object') {
+          return patientUser._id?.toString() === user?.id;
+        }
+        return patientUser?.toString() === user?.id;
+      })));
+      request('/labreports').then(labRes => setLabResults(labRes.labReports.filter((l: any) => {
+        const patientUser = l?.patient?.user;
+        if (!patientUser) return false;
+        if (typeof patientUser === 'object') {
+          return patientUser._id?.toString() === user?.id;
+        }
+        return patientUser?.toString() === user?.id;
+      })));
       setLoading(false);
     }
   };
@@ -83,6 +126,9 @@ const PatientDashboard = () => {
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
   if (!patient) return <div className="p-8 text-center">No patient data found.</div>;
+
+  // Sort prescriptions by date descending for recent display
+  const sortedPrescriptions = prescriptions.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -128,18 +174,78 @@ const PatientDashboard = () => {
               <BookAppointmentForm onSuccess={() => { setShowBookModal(false); refreshData(); }} />
             </DialogContent>
           </Dialog>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
-            <FileText className="h-6 w-6 mb-2" />
-            View Records
-          </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
-            <Pill className="h-6 w-6 mb-2" />
-            Prescriptions
-          </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
-            <Activity className="h-6 w-6 mb-2" />
-            Lab Results
-          </Button>
+          <Dialog open={showRecordsModal} onOpenChange={setShowRecordsModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-20 flex flex-col items-center justify-center" onClick={() => setShowRecordsModal(true)}>
+                <FileText className="h-6 w-6 mb-2" />
+                View Records
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Medical Records</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {appointments.length === 0 ? (
+                  <div className="text-gray-500 text-center">No records found.</div>
+                ) : (
+                  appointments.map((appointment) => (
+                    <div key={appointment._id || appointment.id} className="border rounded p-3">
+                      <div className="font-medium text-blue-700">{formatDateDMY(appointment.date)} {appointment.time} - {appointment.type}</div>
+                      <div className="text-sm text-gray-600">Doctor: {appointment?.doctor?.user?.name || appointment?.doctor?.name || 'Doctor'}</div>
+                      {appointment.diagnosis && <div className="text-xs text-gray-700 mt-1"><span className="font-semibold">Diagnosis:</span> {appointment.diagnosis}</div>}
+                      {appointment.notes && <div className="text-xs text-gray-700 mt-1"><span className="font-semibold">Notes:</span> {appointment.notes}</div>}
+                    </div>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={showPrescriptionsModal} onOpenChange={setShowPrescriptionsModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-20 flex flex-col items-center justify-center" onClick={() => setShowPrescriptionsModal(true)}>
+                <Pill className="h-6 w-6 mb-2" />
+                Prescriptions
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Prescriptions</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {prescriptions.length === 0 ? (
+                  <div className="text-gray-500 text-center">No prescriptions found.</div>
+                ) : (
+                  prescriptions.map((prescription) => (
+                    <div key={prescription._id || prescription.id} className="border rounded p-3">
+                      <div className="font-medium text-blue-700">{formatDateDMY(prescription.date)}</div>
+                      <div className="text-sm text-gray-600">Doctor: {prescription?.doctor?.user?.name || prescription?.doctor?.name || 'Doctor'}</div>
+                      <div className="text-sm text-gray-600">Status: {prescription.status}</div>
+                      {Array.isArray(prescription.medications) && prescription.medications.length > 0 ? (
+                        <div className="mt-2">
+                          <div className="font-semibold text-xs mb-1">Medicines:</div>
+                          <ul className="list-disc ml-5 space-y-0.5">
+                            {prescription.medications.map((med: any, idx: number) => (
+                              <li key={idx} className="text-xs">{med.name} - {med.dosage} {med.frequency} {med.duration}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-xs">Medicine: {prescription.medication || 'N/A'} | Qty: {prescription.quantity || 'N/A'}</div>
+                      )}
+                      {prescription.diagnosis && <div className="mt-2 text-xs"><span className="font-semibold">Diagnosis:</span> {prescription.diagnosis}</div>}
+                      {prescription.notes && <div className="mt-1 text-xs"><span className="font-semibold">Notes:</span> {prescription.notes}</div>}
+                      <div className="mt-2 flex justify-end">
+                        <Button size="sm" variant="outline" onClick={() => generatePrescriptionPDF(prescription)}>
+                          Download as PDF
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -148,12 +254,12 @@ const PatientDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Upcoming Appointments
+                Appointments
               </CardTitle>
               <CardDescription>Your scheduled medical appointments</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[400px] md:max-h-[500px] lg:max-h-[600px] overflow-y-auto">
                 {appointments.map((appointment) => (
                   <div key={appointment._id || appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
@@ -190,87 +296,36 @@ const PatientDashboard = () => {
               <CardDescription>Your current and past medications</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {prescriptions.map((prescription) => (
-                  <div key={prescription.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{prescription?.medication || 'Medication'}</h4>
-                      <p className="text-sm text-gray-600">Prescribed by {prescription?.doctor?.name || 'Doctor'}</p>
-                      <p className="text-sm text-gray-500">{formatDateDMY(prescription?.date)}</p>
-                    </div>
-                    <Badge variant={prescription?.status === 'active' ? 'default' : 'secondary'}>
-                      {prescription?.status || 'unknown'}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Lab Results */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Lab Results
-              </CardTitle>
-              <CardDescription>Your recent test results</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {labResults.map((result) => (
-                  <div key={result.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{result?.test || 'Test'}</h4>
-                      <p className="text-sm text-gray-500">{formatDateDMY(result?.date)}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={result?.status === 'ready' ? 'default' : 'secondary'}>
-                        {result?.status || 'unknown'}
+              <div className="space-y-4 max-h-[400px] md:max-h-[500px] lg:max-h-[600px] overflow-y-auto">
+                {sortedPrescriptions.length === 0 ? (
+                  <div className="text-gray-500 text-center">No prescriptions found.</div>
+                ) : (
+                  sortedPrescriptions.map((prescription) => (
+                    <div key={prescription._id || prescription.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">
+                          {Array.isArray(prescription.medications) && prescription.medications.length > 0
+                            ? prescription.medications.map((med: any, idx: number) => (
+                                <span key={idx} className="block">
+                                  {med.name} {med.dosage ? `- ${med.dosage}` : ''} {med.frequency ? `(${med.frequency})` : ''} {med.duration ? `for ${med.duration}` : ''}
+                                </span>
+                              ))
+                            : (prescription.medication || 'Medication')}
+                        </h4>
+                        <p className="text-sm text-gray-600">Prescribed by {prescription?.doctor?.user?.name || prescription?.doctor?.name || 'Doctor'}</p>
+                        <p className="text-sm text-gray-500">{formatDateDMY(prescription?.date)}</p>
+                        {prescription.diagnosis && <div className="text-xs text-gray-700 mt-1"><span className="font-semibold">Diagnosis:</span> {prescription.diagnosis}</div>}
+                        {prescription.notes && <div className="text-xs text-gray-700 mt-1"><span className="font-semibold">Notes:</span> {prescription.notes}</div>}
+                        {!(Array.isArray(prescription.medications) && prescription.medications.length > 0) && (
+                          <div className="text-xs text-gray-500 mt-1">Qty: {prescription.quantity || 'N/A'}</div>
+                        )}
+                      </div>
+                      <Badge variant={prescription?.status === 'active' ? 'default' : 'secondary'}>
+                        {prescription?.status || 'unknown'}
                       </Badge>
-                      {result?.status === 'ready' && (
-                        <Button size="sm" variant="outline">View</Button>
-                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Health Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Health Summary
-              </CardTitle>
-              <CardDescription>Your current health information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <h4 className="font-medium text-blue-900">Blood Pressure</h4>
-                    <p className="text-blue-700">120/80 mmHg</p>
-                    <p className="text-xs text-blue-600">Normal</p>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <h4 className="font-medium text-green-900">Weight</h4>
-                    <p className="text-green-700">70 kg</p>
-                    <p className="text-xs text-green-600">Healthy</p>
-                  </div>
-                  <div className="p-3 bg-yellow-50 rounded-lg">
-                    <h4 className="font-medium text-yellow-900">Glucose</h4>
-                    <p className="text-yellow-700">95 mg/dL</p>
-                    <p className="text-xs text-yellow-600">Normal</p>
-                  </div>
-                  <div className="p-3 bg-purple-50 rounded-lg">
-                    <h4 className="font-medium text-purple-900">Heart Rate</h4>
-                    <p className="text-purple-700">72 bpm</p>
-                    <p className="text-xs text-purple-600">Normal</p>
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

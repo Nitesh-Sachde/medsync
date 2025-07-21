@@ -84,6 +84,9 @@ const DoctorDashboard = () => {
   const [medicalRecordsLabReportsLoading, setMedicalRecordsLabReportsLoading] = useState(false);
   // Add state for Medical Records search
   const [medicalRecordsSearch, setMedicalRecordsSearch] = useState('');
+  // Add state for loading/error in modal
+  const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(false);
+  const [medicalRecordsError, setMedicalRecordsError] = useState('');
 
   // Add state for multi-step modal
   const [selectedExistingPatient, setSelectedExistingPatient] = useState<any>(null);
@@ -107,6 +110,12 @@ const DoctorDashboard = () => {
       const doctorPatientIds = new Set(apptRes.appointments.map((a: any) => a.patient && (a.patient._id || a.patient.id)));
       const myPatients = patientRes.patients.filter((p: any) => doctorPatientIds.has(p._id || p.id));
       setPatients(myPatients);
+      // Fetch prescriptions for this doctor
+      const prescriptionsRes = await request('/prescriptions');
+      const myPrescriptions = prescriptionsRes.prescriptions.filter((p: any) => {
+        return p.doctor && (p.doctor._id === doctorRes.doctor._id || p.doctor.id === doctorRes.doctor._id);
+      });
+      setPrescriptions(myPrescriptions);
       const today = new Date().toISOString().slice(0, 10);
       const todayAppointments = apptRes.appointments.filter((a: any) => a.date === today);
       const upcomingAppointments = apptRes.appointments.filter((a: any) => {
@@ -136,15 +145,20 @@ const DoctorDashboard = () => {
   };
 
   // All useMemo, useCallback, useRef, useEffect hooks here
+  // In the filteredPrescriptions useMemo, sort by date descending (most recent first)
   const filteredPrescriptions = useMemo(() => {
-    if (!prescriptionSearch) return prescriptions;
-    return prescriptions.filter((p: any) => {
-      const patientName = p.patient?.user?.name || p.patient?.name || '';
-      return (
-        patientName.toLowerCase().includes(prescriptionSearch.toLowerCase()) ||
-        p.medication.toLowerCase().includes(prescriptionSearch.toLowerCase())
-      );
-    });
+    let filtered = prescriptions;
+    if (prescriptionSearch) {
+      filtered = prescriptions.filter((p: any) => {
+        const patientName = p.patient?.user?.name || p.patient?.name || '';
+        return (
+          patientName.toLowerCase().includes(prescriptionSearch.toLowerCase()) ||
+          p.medication.toLowerCase().includes(prescriptionSearch.toLowerCase())
+        );
+      });
+    }
+    // Sort by date descending (most recent first)
+    return filtered.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [prescriptions, prescriptionSearch]);
 
   const filteredAppointments = useMemo(() => {
@@ -182,26 +196,6 @@ const DoctorDashboard = () => {
     if (user?.role === 'doctor') refreshAppointments();
   }, [user]);
 
-  useEffect(() => {
-    if (!showPrescriptionsModal || !doctor) return;
-    const fetchPrescriptions = async () => {
-      setPrescriptionsLoading(true);
-      setPrescriptionsError('');
-      try {
-        const res = await request('/prescriptions');
-        const myPrescriptions = res.prescriptions.filter((p: any) => {
-          return p.doctor && (p.doctor._id === doctor._id || p.doctor.id === doctor._id);
-        });
-        setPrescriptions(myPrescriptions);
-      } catch (err: any) {
-        setPrescriptionsError(err.message || 'Failed to fetch prescriptions.');
-      } finally {
-        setPrescriptionsLoading(false);
-      }
-    };
-    fetchPrescriptions();
-  }, [showPrescriptionsModal, doctor]);
-
   // Medical Records lab reports fetcher - must be at top level
   useEffect(() => {
     if (!showMedicalRecordsModal || !selectedMedicalRecordsPatient) return;
@@ -220,6 +214,60 @@ const DoctorDashboard = () => {
       .catch(() => setMedicalRecordsLabReports([]))
       .finally(() => setMedicalRecordsLabReportsLoading(false));
   }, [showMedicalRecordsModal, selectedMedicalRecordsPatient]);
+
+  // Refined: Reset selected patient when closing modal
+  useEffect(() => {
+    if (!showMedicalRecordsModal) {
+      setSelectedMedicalRecordsPatient(null);
+      setMedicalRecordsLabReports([]);
+      setMedicalRecordsError('');
+    }
+  }, [showMedicalRecordsModal]);
+
+  // Refined: Fetch all data for selected patient
+  useEffect(() => {
+    if (!showMedicalRecordsModal || !selectedMedicalRecordsPatient) return;
+    setMedicalRecordsLoading(true);
+    setMedicalRecordsError('');
+    // Simulate loading for appointments/prescriptions (already in state)
+    // Only lab reports are fetched from server
+    request('/labreports')
+      .then(res => {
+        const filtered = res.labReports.filter((l: any) => {
+          return (
+            l.patient &&
+            ((l.patient._id || l.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id))
+          );
+        });
+        setMedicalRecordsLabReports(filtered);
+      })
+      .catch(err => {
+        setMedicalRecordsLabReports([]);
+        setMedicalRecordsError('Failed to fetch lab reports.');
+      })
+      .finally(() => setMedicalRecordsLoading(false));
+  }, [showMedicalRecordsModal, selectedMedicalRecordsPatient]);
+
+  // Add state for search results
+  const [medicalRecordsPatientResults, setMedicalRecordsPatientResults] = useState<any[]>([]);
+
+  // Update patient search results when search or patients change
+  useEffect(() => {
+    if (!medicalRecordsSearch) {
+      setMedicalRecordsPatientResults(patients);
+    } else {
+      setMedicalRecordsPatientResults(
+        patients.filter((p: any) => {
+          const name = p.name || p.user?.name || '';
+          const email = p.user?.email || '';
+          return (
+            name.toLowerCase().includes(medicalRecordsSearch.toLowerCase()) ||
+            email.toLowerCase().includes(medicalRecordsSearch.toLowerCase())
+          );
+        })
+      );
+    }
+  }, [medicalRecordsSearch, patients]);
 
   // Place loading and error returns AFTER all hooks
   if (loading) return (
@@ -974,72 +1022,8 @@ const DoctorDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Pending Tasks */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Pending Tasks
-              </CardTitle>
-              <CardDescription>Items requiring your attention</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Lab Report Review</p>
-                    <p className="text-sm text-gray-600">5 reports pending</p>
-                  </div>
-                  <Button size="sm">Review</Button>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Prescription Renewals</p>
-                    <p className="text-sm text-gray-600">3 renewals due</p>
-                  </div>
-                  <Button size="sm">Process</Button>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Patient Follow-ups</p>
-                    <p className="text-sm text-gray-600">2 follow-ups needed</p>
-                  </div>
-                  <Button size="sm">Contact</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Weekly Overview
-              </CardTitle>
-              <CardDescription>Your weekly performance metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Patients Seen</span>
-                  <span className="font-medium">47</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Prescriptions Written</span>
-                  <span className="font-medium">32</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Lab Orders</span>
-                  <span className="font-medium">15</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Average Consultation Time</span>
-                  <span className="font-medium">18 min</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Pending Tasks - REMOVED */}
+          {/* Weekly Overview - REMOVED */}
         </div>
       </div>
       
@@ -1224,75 +1208,64 @@ const DoctorDashboard = () => {
 
       {/* Medical Records Modal */}
       <Dialog open={showMedicalRecordsModal} onOpenChange={setShowMedicalRecordsModal}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent
+          className="w-full max-w-4xl p-2 sm:p-6 max-h-screen overflow-y-auto flex flex-col"
+        >
           <DialogHeader>
             <DialogTitle>Medical Records</DialogTitle>
           </DialogHeader>
           <div className="mb-4">
             <Input
-              placeholder="Search by name or email..."
+              placeholder="Search patient by name or email..."
               value={medicalRecordsSearch}
               onChange={e => setMedicalRecordsSearch(e.target.value)}
               className="mb-2"
             />
-            <Select
-              value={selectedMedicalRecordsPatient?._id || selectedMedicalRecordsPatient?.id || ''}
-              onValueChange={v => {
-                const p = patients.find((p: any) => (p._id || p.id) === v);
-                setSelectedMedicalRecordsPatient(p);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select patient" />
-              </SelectTrigger>
-              <SelectContent>
-                {patients
-                  .filter(p => {
-                    const name = p.name || p.user?.name || '';
-                    const email = p.user?.email || '';
-                    return (
-                      name.toLowerCase().includes(medicalRecordsSearch.toLowerCase()) ||
-                      email.toLowerCase().includes(medicalRecordsSearch.toLowerCase())
-                    );
-                  })
-                  .slice()
-                  .sort((a, b) => {
-                    // Find last appointment date for each patient
-                    const aLast = appointments.filter(ap => (ap.patient._id || ap.patient.id) === (a._id || a.id)).sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
-                    const bLast = appointments.filter(ap => (ap.patient._id || ap.patient.id) === (b._id || b.id)).sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
-                    const aDate = aLast ? new Date(aLast.date).getTime() : 0;
-                    const bDate = bLast ? new Date(bLast.date).getTime() : 0;
-                    return bDate - aDate;
-                  })
-                  .map((p: any) => (
-                    <SelectItem key={p._id || p.id} value={p._id || p.id}>
-                      {p.name || p.user?.name || 'Patient'}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            <div className="max-h-40 overflow-y-auto border rounded bg-white">
+              {medicalRecordsPatientResults.length === 0 ? (
+                <div className="text-gray-500 p-2 text-center">No patients found.</div>
+              ) : (
+                medicalRecordsPatientResults.map((p: any) => (
+                  <button
+                    className={`w-full text-left px-4 py-2 hover:bg-blue-50 focus:bg-blue-100 border-b last:border-b-0 ${selectedMedicalRecordsPatient && (p._id || p.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id) ? 'bg-blue-100 font-semibold' : ''}`}
+                    onClick={() => setSelectedMedicalRecordsPatient(p)}
+                    key={p._id || p.id}
+                  >
+                    {p.name || p.user?.name || 'Patient'}
+                    <span className="block text-xs text-gray-500">{p.user?.email}</span>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
-          {selectedMedicalRecordsPatient ? (
+          {medicalRecordsLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-2"></div>
+              <span className="text-gray-600">Loading medical records...</span>
+            </div>
+          ) : medicalRecordsError ? (
+            <div className="text-red-500 text-center py-8">{medicalRecordsError}</div>
+          ) : selectedMedicalRecordsPatient ? (
             <div className="space-y-6">
               {/* Patient Info */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-medium mb-2">Patient Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="font-medium">Name: </span>{selectedMedicalRecordsPatient.user?.name || selectedMedicalRecordsPatient.name || 'Unknown'}</div>
-                  <div><span className="font-medium">Contact: </span>{selectedMedicalRecordsPatient.user?.contact || 'N/A'}</div>
-                  <div><span className="font-medium">Email: </span>{selectedMedicalRecordsPatient.user?.email || 'N/A'}</div>
-                  <div><span className="font-medium">Age: </span>{selectedMedicalRecordsPatient.user?.age || 'N/A'}</div>
-                  <div><span className="font-medium">Gender: </span>{selectedMedicalRecordsPatient.user?.gender || 'N/A'}</div>
-                  <div><span className="font-medium">Health Summary: </span>{selectedMedicalRecordsPatient.healthSummary || 'N/A'}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div><span className="font-medium">Name: </span>{selectedMedicalRecordsPatient?.user?.name || selectedMedicalRecordsPatient?.name || 'Unknown'}</div>
+                  <div><span className="font-medium">Contact: </span>{selectedMedicalRecordsPatient?.user?.contact || 'N/A'}</div>
+                  <div><span className="font-medium">Email: </span>{selectedMedicalRecordsPatient?.user?.email || 'N/A'}</div>
+                  <div><span className="font-medium">Age: </span>{selectedMedicalRecordsPatient?.user?.age || 'N/A'}</div>
+                  <div><span className="font-medium">Gender: </span>{selectedMedicalRecordsPatient?.user?.gender || 'N/A'}</div>
+                  <div><span className="font-medium">Health Summary: </span>{selectedMedicalRecordsPatient?.healthSummary || 'N/A'}</div>
                 </div>
               </div>
               {/* Appointments */}
               <h3 className="font-medium mb-2">Appointments</h3>
               <div className="max-h-40 overflow-y-auto space-y-2">
-                {appointments.filter(a => (a.patient._id || a.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).length === 0 ? (
+                {appointments.filter(a => (a.patient?._id || a.patient?.id) === (selectedMedicalRecordsPatient?._id || selectedMedicalRecordsPatient?.id)).length === 0 ? (
                   <div className="text-gray-500">No appointments found.</div>
                 ) : (
-                  appointments.filter(a => (a.patient._id || a.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).map(a => (
+                  appointments.filter(a => (a.patient?._id || a.patient?.id) === (selectedMedicalRecordsPatient?._id || selectedMedicalRecordsPatient?.id)).map(a => (
                     <div key={a._id} className="border rounded p-2">
                       <div className="text-sm font-medium">{formatDateDMY(a.date)} {a.time} - {a.type}</div>
                       {a.diagnosis && <div className="text-xs text-gray-600">Diagnosis: {a.diagnosis}</div>}
@@ -1304,18 +1277,18 @@ const DoctorDashboard = () => {
               {/* Prescriptions */}
               <h3 className="font-medium mb-2">Prescriptions</h3>
               <div className="max-h-40 overflow-y-auto space-y-2">
-                {prescriptions.filter(pr => (pr.patient._id || pr.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).length === 0 ? (
+                {prescriptions.filter(pr => (pr.patient?._id || pr.patient?.id) === (selectedMedicalRecordsPatient?._id || selectedMedicalRecordsPatient?.id)).length === 0 ? (
                   <div className="text-gray-500">No prescriptions found.</div>
                 ) : (
-                  prescriptions.filter(pr => (pr.patient._id || pr.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id)).map(pr => (
+                  prescriptions.filter(pr => (pr.patient?._id || pr.patient?.id) === (selectedMedicalRecordsPatient?._id || selectedMedicalRecordsPatient?.id)).map(pr => (
                     <div key={pr._id} className="border rounded p-2">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <div className="text-sm font-medium">{formatDateDMY(pr.date)}</div>
                           <div className="text-xs text-gray-600">Status: {pr.status}</div>
                           <div className="text-xs text-gray-600">Doctor: {pr.doctor?.user?.name || 'Unknown'}</div>
                         </div>
-                        <Button size="sm" variant="outline" className="mt-2 md:mt-0" onClick={() => handleDownloadPrescriptionPDF(pr)}>
+                        <Button size="sm" variant="outline" className="mt-2 sm:mt-0" onClick={() => handleDownloadPrescriptionPDF(pr)}>
                           Download as PDF
                         </Button>
                       </div>
