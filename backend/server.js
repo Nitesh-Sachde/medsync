@@ -22,6 +22,7 @@ require('./models/Inventory');
 require('./models/WalkIn');
 require('./models/Approval');
 require('./models/Hospital');
+require('./models/ChatSession');
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -69,6 +70,9 @@ app.use('/api/superadmin', require('./routes/superAdmin'));
 
 // User routes
 app.use('/api/users', require('./routes/user'));
+
+// AI Chat routes
+app.use('/api/ai-chat', require('./routes/aiChat'));
 
 // MongoDB connection
 const PORT = process.env.PORT || 5000;
