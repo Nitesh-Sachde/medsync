@@ -3,11 +3,12 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, FileText, Pill, Activity, Phone, Bell } from 'lucide-react';
+import { Calendar, Clock, User, FileText, Pill, Activity, Phone, Bell, Bot } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
 import { useNavigate } from 'react-router-dom';
 import BookAppointmentForm from '../components/BookAppointmentForm';
+import AIChatModal from '../components/AIChatModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatDateDMY } from '@/lib/utils';
 import { generatePrescriptionPDF } from '@/lib/prescriptionPdf';
@@ -159,7 +160,7 @@ const PatientDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Dialog open={showBookModal} onOpenChange={setShowBookModal}>
             <DialogTrigger asChild>
               <Button className="h-20 medical-gradient text-white flex flex-col items-center justify-center" onClick={() => setShowBookModal(true)}>
@@ -246,6 +247,12 @@ const PatientDashboard = () => {
               </div>
             </DialogContent>
           </Dialog>
+          <AIChatModal title="AI Health Assistant - Patient Support">
+            <Button variant="outline" className="h-20 flex flex-col items-center justify-center hover:bg-blue-50 border-blue-200 hover:border-blue-300">
+              <Bot className="h-6 w-6 mb-2 text-blue-600" />
+              AI Health Assistant
+            </Button>
+          </AIChatModal>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

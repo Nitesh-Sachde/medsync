@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Users, Calendar, DollarSign, Activity, Settings, Database, AlertTriangle, TrendingUp, Building } from 'lucide-react';
+import { Shield, Users, Calendar, DollarSign, Activity, Settings, Database, AlertTriangle, TrendingUp, Building, Bot } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { useNavigate } from 'react-router-dom';
+import AIChatModal from '../components/AIChatModal';
 import { logout } from '../lib/api';
 
 const AdminDashboard = () => {
@@ -232,6 +233,12 @@ const AdminDashboard = () => {
               <p className="text-gray-600">Hospital Management & Administration</p>
             </div>
             <div className="flex items-center space-x-4">
+              <AIChatModal title="AI Administrative Assistant - Hospital Management">
+                <Button variant="outline" className="flex items-center space-x-2 hover:bg-purple-50 border-purple-200 hover:border-purple-300">
+                  <Bot className="h-4 w-4 text-purple-600" />
+                  <span>AI Assistant</span>
+                </Button>
+              </AIChatModal>
               <Button
                 className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded"
                 onClick={() => {

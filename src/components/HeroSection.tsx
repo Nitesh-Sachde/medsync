@@ -2,8 +2,21 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar, MessageSquare, Users, Activity, ArrowRight, Shield, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+
+  const scrollToAIDemo = () => {
+    const aiSection = document.querySelector('[data-ai-demo]');
+    if (aiSection) {
+      aiSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleGetStarted = () => {
+    navigate('/register');
+  };
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-green-50 py-20">
       {/* Background Pattern */}
@@ -59,11 +72,20 @@ const HeroSection = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="medical-gradient text-white group hover:opacity-90 transition-all">
+              <Button 
+                size="lg" 
+                className="medical-gradient text-white group hover:opacity-90 transition-all"
+                onClick={handleGetStarted}
+              >
                 Get Started Today
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
-              <Button size="lg" variant="outline" className="hover:bg-primary hover:text-white transition-colors">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="hover:bg-primary hover:text-white transition-colors"
+                onClick={scrollToAIDemo}
+              >
                 <MessageSquare className="mr-2 h-5 w-5" />
                 Try AI Assistant
               </Button>

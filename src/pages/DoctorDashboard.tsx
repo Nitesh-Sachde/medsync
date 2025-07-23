@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Users, FileText, Pill, Activity, Phone, Bell, Stethoscope, LogOut, RotateCcw } from 'lucide-react';
+import { Calendar, Clock, Users, FileText, Pill, Activity, Phone, Bell, Stethoscope, LogOut, RotateCcw, Bot } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
 import NewConsultationModal from '../components/NewConsultationModal';
+import AIChatModal from '../components/AIChatModal';
 import jsPDF from 'jspdf';
 import { formatDateDMY } from '@/lib/utils';
 
@@ -699,7 +700,7 @@ const DoctorDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <Button 
             variant={appointmentFilter === 'today' ? 'default' : 'outline'}
             className={`h-16 flex flex-col items-center justify-center ${appointmentFilter === 'today' ? 'medical-gradient text-white' : ''}`}
@@ -793,6 +794,15 @@ const DoctorDashboard = () => {
             <FileText className="h-5 w-5 mb-1" />
             Medical Records
           </Button>
+          <AIChatModal title="AI Medical Assistant - Doctor Support">
+            <Button
+              variant="outline"
+              className="h-16 flex flex-col items-center justify-center hover:bg-green-50 border-green-200 hover:border-green-300"
+            >
+              <Bot className="h-5 w-5 mb-1 text-green-600" />
+              AI Assistant
+            </Button>
+          </AIChatModal>
           <Dialog open={showPatientHistoryModal} onOpenChange={setShowPatientHistoryModal}>
             <DialogContent className="max-w-lg">
               <DialogHeader>

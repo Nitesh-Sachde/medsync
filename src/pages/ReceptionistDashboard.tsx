@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, Users, Phone, UserPlus, Search, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, Users, Phone, UserPlus, Search, AlertTriangle, CheckCircle, Bot } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
+import AIChatModal from '../components/AIChatModal';
 
 const ReceptionistDashboard = () => {
   const { user } = useAuth();
@@ -143,7 +144,7 @@ const ReceptionistDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Button className="h-16 medical-gradient text-white flex flex-col items-center justify-center">
             <UserPlus className="h-5 w-5 mb-1" />
             Register Patient
@@ -164,6 +165,12 @@ const ReceptionistDashboard = () => {
             <Phone className="h-5 w-5 mb-1" />
             Call Patient
           </Button>
+          <AIChatModal title="AI Reception Assistant - Patient Support">
+            <Button variant="outline" className="h-16 flex flex-col items-center justify-center hover:bg-orange-50 border-orange-200 hover:border-orange-300">
+              <Bot className="h-5 w-5 mb-1 text-orange-600" />
+              AI Assistant
+            </Button>
+          </AIChatModal>
         </div>
 
         {/* Search Bar */}
