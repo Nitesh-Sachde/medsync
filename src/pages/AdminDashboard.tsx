@@ -425,7 +425,7 @@ const AdminDashboard = () => {
             </div>
             {/* Add User Dialog (reuse your existing code, but remove floating button) */}
             <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
-              <DialogContent>
+              <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
                 <DialogHeader><DialogTitle>Add User</DialogTitle></DialogHeader>
                 <form onSubmit={handleAddUser} className="space-y-4">
                   <Input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
@@ -456,7 +456,7 @@ const AdminDashboard = () => {
             </Dialog>
             {/* Edit User Dialog */}
             <Dialog open={showEditUser} onOpenChange={setShowEditUser}>
-              <DialogContent>
+              <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
                 <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
                 {editUser && (
                   <form onSubmit={handleEditUserSubmit} className="space-y-4">
@@ -482,7 +482,7 @@ const AdminDashboard = () => {
             </Dialog>
             {/* Delete User Dialog */}
             <Dialog open={showDeleteUser} onOpenChange={setShowDeleteUser}>
-              <DialogContent>
+              <DialogContent className="max-w-lg w-[95vw] sm:w-full mx-4">
                 <DialogHeader><DialogTitle>Delete User</DialogTitle></DialogHeader>
                 {deleteUser && (
                   <div className="space-y-4">

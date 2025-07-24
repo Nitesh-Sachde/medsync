@@ -14,7 +14,6 @@ const ReceptionistDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [walkIns, setWalkIns] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
 
   useEffect(() => {
@@ -27,13 +26,10 @@ const ReceptionistDashboard = () => {
         const today = new Date().toISOString().slice(0, 10);
         const todaysAppointments = apptRes.appointments.filter((a: any) => a.date === today);
         setAppointments(todaysAppointments);
-        // Fetch walk-in queue
-        const walkInRes = await request('/walkins');
-        setWalkIns(walkInRes.walkIns);
         // Stats
         setStats({
           todayAppointments: todaysAppointments.length,
-          walkIns: walkInRes.walkIns.length,
+          walkIns: 0, // Simplified for now
           checkedIn: todaysAppointments.filter((a: any) => a.status === 'checked-in').length,
           completed: todaysAppointments.filter((a: any) => a.status === 'completed').length
         });
@@ -112,8 +108,8 @@ const ReceptionistDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Walk-ins</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.walkIns}</p>
+                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
                 </div>
                 <Users className="h-8 w-8 text-orange-600" />
               </div>
@@ -229,42 +225,6 @@ const ReceptionistDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Walk-in Queue */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Walk-in Queue
-              </CardTitle>
-              <CardDescription>Patients waiting without appointments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {walkIns.map((patient) => (
-                  <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{patient.name}</h4>
-                      <p className="text-sm text-gray-600">{patient.reason}</p>
-                      <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
-                        <Clock className="h-4 w-4" />
-                        Arrived: {patient.arrivalTime}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={
-                        patient.priority === 'high' ? 'destructive' :
-                        patient.priority === 'medium' ? 'default' : 'secondary'
-                      }>
-                        {patient.priority} priority
-                      </Badge>
-                      <Button size="sm" variant="outline">Assign</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Quick Patient Registration */}
           <Card>
             <CardHeader>
@@ -315,7 +275,7 @@ const ReceptionistDashboard = () => {
                   <span className="font-medium text-green-900">12</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                  <span className="text-sm text-orange-900">Walk-ins Handled</span>
+                  <span className="text-sm text-green-900">Appointments Completed</span>
                   <span className="font-medium text-orange-900">5</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">

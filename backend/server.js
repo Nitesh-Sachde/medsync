@@ -15,12 +15,8 @@ require('./models/Patient');
 require('./models/Doctor');
 require('./models/Appointment');
 require('./models/Prescription');
-require('./models/LabReport');
 require('./models/Department');
-require('./models/Activity');
 require('./models/Inventory');
-require('./models/WalkIn');
-require('./models/Approval');
 require('./models/Hospital');
 require('./models/ChatSession');
 
@@ -44,20 +40,8 @@ app.use('/api/appointments', require('./routes/appointment'));
 // Prescription routes
 app.use('/api/prescriptions', require('./routes/prescription'));
 
-// LabReport routes
-app.use('/api/labreports', require('./routes/labReport'));
-
 // Inventory routes
 app.use('/api/inventory', require('./routes/inventory'));
-
-// WalkIn routes
-app.use('/api/walkins', require('./routes/walkIn'));
-
-// Approval routes
-app.use('/api/approvals', require('./routes/approval'));
-
-// Activity routes
-app.use('/api/activities', require('./routes/activity'));
 
 // Department routes
 app.use('/api/departments', require('./routes/department'));

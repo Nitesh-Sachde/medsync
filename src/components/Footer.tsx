@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Heart, Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -9,10 +9,12 @@ const Footer = () => {
         <div className="grid md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="medical-gradient p-2 rounded-lg">
-                <Heart className="h-6 w-6 text-white" />
-              </div>
+            <div className="flex items-center space-x-4">
+              <img 
+                src="/medsync_logo.png" 
+                alt="MedSync Logo" 
+                className="h-14 w-auto object-contain" 
+              />
               <div>
                 <h3 className="text-xl font-bold">MedSync</h3>
                 <p className="text-xs text-gray-400">Smart Healthcare</p>
@@ -31,25 +33,25 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+            <h4 className="text-lg font-semibold mb-4">Platform</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#home" className="text-gray-400 hover:text-white transition-colors">Home</a></li>
-              <li><a href="#services" className="text-gray-400 hover:text-white transition-colors">Services</a></li>
-              <li><a href="#about" className="text-gray-400 hover:text-white transition-colors">About Us</a></li>
-              <li><a href="#contact" className="text-gray-400 hover:text-white transition-colors">Contact</a></li>
-              <li><a href="#privacy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
+              <li><span className="text-gray-400">Patient Portal</span></li>
+              <li><span className="text-gray-400">Doctor Dashboard</span></li>
+              <li><span className="text-gray-400">Admin Panel</span></li>
+              <li><span className="text-gray-400">Pharmacy Management</span></li>
+              <li><span className="text-gray-400">AI Health Assistant</span></li>
             </ul>
           </div>
 
-          {/* Services */}
+          {/* Features */}
           <div>
-            <h4 className="text-lg font-semibold mb-4">Services</h4>
+            <h4 className="text-lg font-semibold mb-4">Features</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Patient Portal</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Doctor Dashboard</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">AI Health Assistant</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Pharmacy Module</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Lab Reports</a></li>
+              <li><span className="text-gray-400">Smart Scheduling</span></li>
+              <li><span className="text-gray-400">E-Prescriptions</span></li>
+              <li><span className="text-gray-400">Inventory Management</span></li>
+              <li><span className="text-gray-400">Real-time Alerts</span></li>
+              <li><span className="text-gray-400">Secure Data Storage</span></li>
             </ul>
           </div>
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Heart, Menu, X, User, Calendar, MessageSquare, Activity } from 'lucide-react';
+import { Menu, X, User, Calendar, MessageSquare, Activity } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/authContext';
 
@@ -46,12 +46,14 @@ const Header = () => {
   return (
     <header className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="medical-gradient p-2 rounded-lg">
-              <Heart className="h-6 w-6 text-white" />
-            </div>
+          <Link to="/" className="flex items-center space-x-4">
+            <img 
+              src="/medsync_logo.png" 
+              alt="MedSync Logo" 
+              className="h-16 w-auto object-contain" 
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-900">MedSync</h1>
               <p className="text-xs text-gray-500">Smart Healthcare</p>
@@ -60,11 +62,6 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-gray-700 hover:text-primary transition-colors">Home</Link>
-            <Link to="/appointments" className="text-gray-700 hover:text-primary transition-colors">Appointments</Link>
-            <a href="#services" className="text-gray-700 hover:text-primary transition-colors">Services</a>
-            <a href="#about" className="text-gray-700 hover:text-primary transition-colors">About</a>
-            <a href="#contact" className="text-gray-700 hover:text-primary transition-colors">Contact</a>
             {user?.role === 'super-admin' && (
               <Link to="/superadmin" className="text-blue-700 font-semibold hover:text-blue-900 transition-colors">Super Admin</Link>
             )}
@@ -107,11 +104,6 @@ const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <div className="flex flex-col space-y-4">
-              <Link to="/" className="text-gray-700 hover:text-primary transition-colors px-2 py-1">Home</Link>
-              <Link to="/appointments" className="text-gray-700 hover:text-primary transition-colors px-2 py-1">Appointments</Link>
-              <a href="#services" className="text-gray-700 hover:text-primary transition-colors px-2 py-1">Services</a>
-              <a href="#about" className="text-gray-700 hover:text-primary transition-colors px-2 py-1">About</a>
-              <a href="#contact" className="text-gray-700 hover:text-primary transition-colors px-2 py-1">Contact</a>
               {user?.role === 'super-admin' && (
                 <Link to="/superadmin" className="text-blue-700 font-semibold hover:text-blue-900 transition-colors px-2 py-1">Super Admin</Link>
               )}
@@ -129,10 +121,9 @@ const Header = () => {
                         Login
                       </Button>
                     </Link>
-                    <Link to="/appointments">
+                    <Link to="/register">
                       <Button className="medical-gradient text-white w-full">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Book Appointment
+                        Get Started
                       </Button>
                     </Link>
                   </>

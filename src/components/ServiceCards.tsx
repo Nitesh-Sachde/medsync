@@ -49,13 +49,6 @@ const ServiceCards = () => {
       description: 'Medicine dispensing and inventory management system',
       color: 'bg-red-50 text-red-600',
       features: ['Stock Management', 'Prescription Tracking', 'Dispensing Log']
-    },
-    {
-      icon: FileText,
-      title: 'Lab Reports',
-      description: 'Secure upload, storage, and sharing of laboratory test results',
-      color: 'bg-indigo-50 text-indigo-600',
-      features: ['Secure Upload', 'Result Sharing', 'History Tracking']
     }
   ];
 

@@ -241,7 +241,8 @@ const SuperAdminDashboard = () => {
             </div>
             <div className="flex items-center space-x-4">
               <Button
-                className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded"
+                variant="outline"
+                className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
                 onClick={() => {
                   logout();
                   setTimeout(() => navigate('/'), 100);
@@ -257,7 +258,11 @@ const SuperAdminDashboard = () => {
       <div className="max-w-4xl mx-auto py-8">
         <h1 className="text-2xl font-bold mb-6">Super Admin Dashboard</h1>
         <div className="mb-6">
-          <Button onClick={() => handleShowHospitalForm()} disabled={actionLoading}>
+          <Button 
+            onClick={() => handleShowHospitalForm()} 
+            disabled={actionLoading}
+            className="medical-gradient text-white hover:opacity-90 transition-opacity"
+          >
             {showHospitalForm ? 'Cancel' : 'Add New Hospital'}
           </Button>
           {showHospitalForm && (
@@ -324,7 +329,11 @@ const SuperAdminDashboard = () => {
                   />
                 </>
               )}
-              <Button type="submit" disabled={actionLoading}>
+              <Button 
+                type="submit" 
+                disabled={actionLoading}
+                className="medical-gradient text-white hover:opacity-90 transition-opacity"
+              >
                 {actionLoading ? <Loader2 className="animate-spin mr-2" /> : null}
                 {editingHospital ? 'Update Hospital' : 'Create Hospital & Admin'}
               </Button>
@@ -337,8 +346,24 @@ const SuperAdminDashboard = () => {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>{hospital.name}</CardTitle>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => handleShowHospitalForm(hospital)} disabled={actionLoading}>Edit</Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDeleteHospital(hospital._id)} disabled={actionLoading}>Delete</Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => handleShowHospitalForm(hospital)} 
+                    disabled={actionLoading}
+                    className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                  >
+                    Edit
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => handleDeleteHospital(hospital._id)} 
+                    disabled={actionLoading}
+                    className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+                  >
+                    Delete
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -356,10 +381,22 @@ const SuperAdminDashboard = () => {
                             {admin.contact && <div className="text-sm text-gray-500">{admin.contact}</div>}
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleShowAdminForm(hospital._id, admin)} disabled={actionLoading}>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleShowAdminForm(hospital._id, admin)} 
+                              disabled={actionLoading}
+                              className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                            >
                               Edit
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleDeleteAdmin(admin._id)} disabled={actionLoading}>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleDeleteAdmin(admin._id)} 
+                              disabled={actionLoading}
+                              className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+                            >
                               Delete
                             </Button>
                           </div>
@@ -398,7 +435,11 @@ const SuperAdminDashboard = () => {
                         disabled={actionLoading}
                       />
                       <div className="flex gap-2">
-                        <Button type="submit" disabled={actionLoading}>
+                        <Button 
+                          type="submit" 
+                          disabled={actionLoading}
+                          className="medical-gradient text-white hover:opacity-90 transition-opacity"
+                        >
                           {actionLoading ? <Loader2 className="animate-spin mr-2" /> : null}
                           {editingAdmin ? 'Update Admin' : 'Create Admin'}
                         </Button>
@@ -410,6 +451,7 @@ const SuperAdminDashboard = () => {
                             setEditingAdmin(null);
                           }}
                           disabled={actionLoading}
+                          className="hover:bg-gray-50 transition-colors"
                         >
                           Cancel
                         </Button>

@@ -81,8 +81,6 @@ const DoctorDashboard = () => {
   // Add state for Medical Records modal (move above all useEffect)
   const [showMedicalRecordsModal, setShowMedicalRecordsModal] = useState(false);
   const [selectedMedicalRecordsPatient, setSelectedMedicalRecordsPatient] = useState<any>(null);
-  const [medicalRecordsLabReports, setMedicalRecordsLabReports] = useState<any[]>([]);
-  const [medicalRecordsLabReportsLoading, setMedicalRecordsLabReportsLoading] = useState(false);
   // Add state for Medical Records search
   const [medicalRecordsSearch, setMedicalRecordsSearch] = useState('');
   // Add state for loading/error in modal
@@ -197,57 +195,13 @@ const DoctorDashboard = () => {
     if (user?.role === 'doctor') refreshAppointments();
   }, [user]);
 
-  // Medical Records lab reports fetcher - must be at top level
-  useEffect(() => {
-    if (!showMedicalRecordsModal || !selectedMedicalRecordsPatient) return;
-    setMedicalRecordsLabReportsLoading(true);
-    setMedicalRecordsLabReports([]);
-    request('/labreports')
-      .then(res => {
-        const filtered = res.labReports.filter((l: any) => {
-          return (
-            l.patient &&
-            ((l.patient._id || l.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id))
-          );
-        });
-        setMedicalRecordsLabReports(filtered);
-      })
-      .catch(() => setMedicalRecordsLabReports([]))
-      .finally(() => setMedicalRecordsLabReportsLoading(false));
-  }, [showMedicalRecordsModal, selectedMedicalRecordsPatient]);
-
   // Refined: Reset selected patient when closing modal
   useEffect(() => {
     if (!showMedicalRecordsModal) {
       setSelectedMedicalRecordsPatient(null);
-      setMedicalRecordsLabReports([]);
       setMedicalRecordsError('');
     }
   }, [showMedicalRecordsModal]);
-
-  // Refined: Fetch all data for selected patient
-  useEffect(() => {
-    if (!showMedicalRecordsModal || !selectedMedicalRecordsPatient) return;
-    setMedicalRecordsLoading(true);
-    setMedicalRecordsError('');
-    // Simulate loading for appointments/prescriptions (already in state)
-    // Only lab reports are fetched from server
-    request('/labreports')
-      .then(res => {
-        const filtered = res.labReports.filter((l: any) => {
-          return (
-            l.patient &&
-            ((l.patient._id || l.patient.id) === (selectedMedicalRecordsPatient._id || selectedMedicalRecordsPatient.id))
-          );
-        });
-        setMedicalRecordsLabReports(filtered);
-      })
-      .catch(err => {
-        setMedicalRecordsLabReports([]);
-        setMedicalRecordsError('Failed to fetch lab reports.');
-      })
-      .finally(() => setMedicalRecordsLoading(false));
-  }, [showMedicalRecordsModal, selectedMedicalRecordsPatient]);
 
   // Add state for search results
   const [medicalRecordsPatientResults, setMedicalRecordsPatientResults] = useState<any[]>([]);
@@ -736,7 +690,7 @@ const DoctorDashboard = () => {
                 Prescriptions
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
               <DialogHeader>
                 <DialogTitle>Prescriptions</DialogTitle>
               </DialogHeader>
@@ -804,7 +758,7 @@ const DoctorDashboard = () => {
             </Button>
           </AIChatModal>
           <Dialog open={showPatientHistoryModal} onOpenChange={setShowPatientHistoryModal}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
               <DialogHeader>
                 <DialogTitle>Recent Patients</DialogTitle>
               </DialogHeader>
@@ -844,7 +798,7 @@ const DoctorDashboard = () => {
           </Dialog>
           {/* Patient Detail Modal */}
           <Dialog open={showPatientDetailModal} onOpenChange={setShowPatientDetailModal}>
-            <DialogContent className="max-w-xl">
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
               <DialogHeader>
                 <DialogTitle>Patient Details</DialogTitle>
               </DialogHeader>
@@ -1124,7 +1078,7 @@ const DoctorDashboard = () => {
 
       {/* Patient History Modal */}
       <Dialog open={showPatientHistoryModal} onOpenChange={setShowPatientHistoryModal}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
           <DialogHeader>
             <DialogTitle>Patient History - {selectedPatient?.user?.name || 'Unknown Patient'}</DialogTitle>
           </DialogHeader>
@@ -1219,7 +1173,7 @@ const DoctorDashboard = () => {
       {/* Medical Records Modal */}
       <Dialog open={showMedicalRecordsModal} onOpenChange={setShowMedicalRecordsModal}>
         <DialogContent
-          className="w-full max-w-4xl p-2 sm:p-6 max-h-screen overflow-y-auto flex flex-col"
+          className="w-[95vw] sm:w-full max-w-6xl p-2 sm:p-6 max-h-[90vh] overflow-y-auto flex flex-col mx-4"
         >
           <DialogHeader>
             <DialogTitle>Medical Records</DialogTitle>
@@ -1349,24 +1303,6 @@ const DoctorDashboard = () => {
                   ))
                 )}
               </div>
-              {/* Lab Reports */}
-              <h3 className="font-medium mb-2">Lab Reports</h3>
-              <div className="max-h-40 overflow-y-auto space-y-2">
-                {medicalRecordsLabReportsLoading ? (
-                  <div className="text-gray-500">Loading lab reports...</div>
-                ) : medicalRecordsLabReports.length === 0 ? (
-                  <div className="text-gray-500">No lab reports found.</div>
-                ) : (
-                  medicalRecordsLabReports.map(report => (
-                    <div key={report._id} className="border rounded p-2">
-                      <div className="text-sm font-medium">{report.test}</div>
-                      <div className="text-xs text-gray-600">Date: {formatDateDMY(report.date)}</div>
-                      <div className="text-xs text-gray-600">Status: {report.status}</div>
-                      <div className="text-xs text-gray-600">Result: {report.result || 'N/A'}</div>
-                    </div>
-                  ))
-                )}
-              </div>
             </div>
           ) : (
             <div className="text-gray-500">Select a patient to view medical records.</div>
@@ -1376,7 +1312,7 @@ const DoctorDashboard = () => {
 
       {/* Prescription Modal */}
       <Dialog open={selectedPrescription !== null} onOpenChange={() => setSelectedPrescription(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">
               {selectedPrescription?.patient?.user?.name || selectedPrescription?.patient?.name || 'Patient'}

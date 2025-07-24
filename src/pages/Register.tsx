@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Heart, User, Calendar, Phone, MapPin } from 'lucide-react';
+import { User, Calendar, Phone, MapPin } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../lib/api';
 
@@ -72,11 +72,13 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 p-4">
       <div className="w-full max-w-2xl">
         <div className="flex items-center justify-center mb-8">
-          <div className="medical-gradient p-3 rounded-lg mr-3">
-            <Heart className="h-8 w-8 text-white" />
-          </div>
+          <img 
+            src="/medsync_logo.png" 
+            alt="MedSync Logo" 
+            className="h-24 w-auto object-contain mr-5" 
+          />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">MedSync</h1>
+            <h1 className="text-3xl font-bold text-gray-900">MedSync</h1>
             <p className="text-sm text-gray-500">Patient Registration</p>
           </div>
         </div>

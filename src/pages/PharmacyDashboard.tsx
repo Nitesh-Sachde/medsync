@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pill, Package, AlertTriangle, Clock, Search, Truck, CheckCircle, BarChart } from 'lucide-react';
+import { Pill, Package, AlertTriangle, Clock, Search, Truck, CheckCircle, BarChart, Plus, Edit, Filter, RefreshCw, X } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const PharmacyDashboard = () => {
   const { user } = useAuth();
@@ -14,7 +15,21 @@ const PharmacyDashboard = () => {
   const [error, setError] = useState('');
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [lowStock, setLowStock] = useState<any[]>([]);
+  const [expiringSoon, setExpiringSoon] = useState<any[]>([]);
+  const [inventoryAlerts, setInventoryAlerts] = useState<any>({});
   const [stats, setStats] = useState<any>({});
+  const [showAddInventory, setShowAddInventory] = useState(false);
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [selectedInventoryItem, setSelectedInventoryItem] = useState<any>(null);
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Computed values
+  const filteredInventory = inventory.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,16 +39,29 @@ const PharmacyDashboard = () => {
         // Fetch all prescriptions
         const presRes = await request('/prescriptions');
         setPrescriptions(presRes.prescriptions);
-        // Fetch inventory
+        
+        // Fetch inventory with enhanced filtering
         const invRes = await request('/inventory');
-        const lowStockItems = invRes.inventories.filter((item: any) => item.currentStock < item.minStock);
-        setLowStock(lowStockItems);
-        // Stats
+        const allInventory = invRes.inventories;
+        setInventory(allInventory);
+        
+        // Get inventory alerts
+        const alertsRes = await request('/inventory/alerts');
+        setInventoryAlerts(alertsRes.alerts);
+        setLowStock(alertsRes.alerts.lowStock || []);
+        setExpiringSoon(alertsRes.alerts.expiringSoon || []);
+        
+        // Enhanced stats
         setStats({
           prescriptionsDispensed: presRes.prescriptions.filter((p: any) => p.status === 'completed').length,
           pendingPrescriptions: presRes.prescriptions.filter((p: any) => p.status === 'pending').length,
-          lowStockItems: lowStockItems.length,
-          revenue: 0 // Placeholder, implement if you have revenue data
+          lowStockItems: (alertsRes.alerts.lowStock || []).length,
+          outOfStockItems: (alertsRes.alerts.outOfStock || []).length,
+          expiringSoonItems: (alertsRes.alerts.expiringSoon || []).length,
+          expiredItems: (alertsRes.alerts.expired || []).length,
+          totalInventoryValue: allInventory.reduce((sum: number, item: any) => 
+            sum + (item.currentStock * (item.unitPrice || 0)), 0
+          )
         });
       } catch (err: any) {
         setError(err.message);
@@ -93,9 +121,9 @@ const PharmacyDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -106,18 +134,18 @@ const PharmacyDashboard = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-sm font-medium text-gray-600">Pending Orders</p>
                   <p className="text-2xl font-bold text-orange-600">{stats.pendingPrescriptions}</p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -128,12 +156,49 @@ const PharmacyDashboard = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
-                  <p className="text-2xl font-bold text-blue-600">${stats.revenue}</p>
+                  <p className="text-sm font-medium text-gray-600">Expiring Soon</p>
+                  <p className="text-2xl font-bold text-yellow-600">{stats.expiringSoonItems}</p>
+                </div>
+                <Package className="h-8 w-8 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Out of Stock</p>
+                  <p className="text-2xl font-bold text-red-800">{stats.outOfStockItems}</p>
+                </div>
+                <AlertTriangle className="h-8 w-8 text-red-800" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Expired Items</p>
+                  <p className="text-2xl font-bold text-red-900">{stats.expiredItems}</p>
+                </div>
+                <AlertTriangle className="h-8 w-8 text-red-900" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Inventory Value</p>
+                  <p className="text-2xl font-bold text-blue-600">${(stats.totalInventoryValue || 0).toLocaleString()}</p>
                 </div>
                 <BarChart className="h-8 w-8 text-blue-600" />
               </div>
@@ -223,32 +288,82 @@ const PharmacyDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Low Stock Alerts */}
+          {/* Enhanced Inventory Alerts */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
-                Low Stock Alerts
+                Inventory Alerts
               </CardTitle>
-              <CardDescription>Medications running low on inventory</CardDescription>
+              <CardDescription>Critical inventory notifications</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {lowStock.map((medication) => (
-                  <div key={medication.id} className="flex items-center justify-between p-4 border rounded-lg bg-red-50">
-                    <div>
-                      <h4 className="font-medium text-red-900">{medication.name}</h4>
-                      <p className="text-sm text-red-700">Current: {medication.currentStock} | Min: {medication.minStock}</p>
-                      <p className="text-sm text-red-600">{medication.supplier}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="destructive">
-                        {Math.round((medication.currentStock / medication.minStock) * 100)}% left
-                      </Badge>
-                      <Button size="sm" variant="outline">Reorder</Button>
-                    </div>
+              <div className="space-y-4 max-h-80 overflow-y-auto">
+                {/* Low Stock Items */}
+                {lowStock.length > 0 && (
+                  <div>
+                    <h5 className="font-medium text-red-700 mb-2">Low Stock ({lowStock.length})</h5>
+                    {lowStock.map((item) => (
+                      <div key={item._id} className="flex items-center justify-between p-3 border rounded-lg bg-red-50 mb-2">
+                        <div>
+                          <h4 className="font-medium text-red-900">{item.name}</h4>
+                          <p className="text-sm text-red-700">
+                            Current: {item.currentStock} | Min: {item.minStock}
+                            {item.location && ` | Location: ${item.location}`}
+                          </p>
+                          <p className="text-sm text-red-600">{item.supplier}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="destructive">
+                            {Math.round((item.currentStock / item.minStock) * 100)}% left
+                          </Badge>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedInventoryItem(item);
+                              setShowRestockModal(true);
+                            }}
+                          >
+                            Restock
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+
+                {/* Expiring Soon Items */}
+                {expiringSoon.length > 0 && (
+                  <div>
+                    <h5 className="font-medium text-yellow-700 mb-2">Expiring Soon ({expiringSoon.length})</h5>
+                    {expiringSoon.map((item) => (
+                      <div key={item._id} className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50 mb-2">
+                        <div>
+                          <h4 className="font-medium text-yellow-900">{item.name}</h4>
+                          <p className="text-sm text-yellow-700">
+                            Expires: {new Date(item.expirationDate).toLocaleDateString()}
+                            {item.batchNumber && ` | Batch: ${item.batchNumber}`}
+                          </p>
+                          <p className="text-sm text-yellow-600">Stock: {item.currentStock}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-yellow-200 text-yellow-800">
+                            {Math.ceil((new Date(item.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days
+                          </Badge>
+                          <Button size="sm" variant="outline">Mark Priority</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {lowStock.length === 0 && expiringSoon.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
+                    <p>All inventory levels are normal!</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -281,6 +396,125 @@ const PharmacyDashboard = () => {
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Enhanced Inventory Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Inventory Management
+              </CardTitle>
+              <CardDescription>Manage your medication inventory</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Search medications..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-64"
+                  />
+                  <Button variant="outline" size="sm">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
+                  </Button>
+                </div>
+                <Button onClick={() => setShowAddModal(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Medication
+                </Button>
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Current Stock</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Expiry Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInventory.map((item) => (
+                      <TableRow key={item._id} className="hover:bg-gray-50">
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{item.name}</div>
+                            {item.batchNumber && (
+                              <div className="text-sm text-gray-500">Batch: {item.batchNumber}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{item.currentStock}</span>
+                            {item.currentStock <= item.minStock && (
+                              <AlertTriangle className="h-4 w-4 text-red-500" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              item.currentStock === 0 ? "destructive" :
+                              item.currentStock <= item.minStock ? "secondary" :
+                              new Date(item.expirationDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) ? "outline" :
+                              "default"
+                            }
+                          >
+                            {item.currentStock === 0 ? "Out of Stock" :
+                             item.currentStock <= item.minStock ? "Low Stock" :
+                             new Date(item.expirationDate) <= new Date() ? "Expired" :
+                             new Date(item.expirationDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) ? "Expiring Soon" :
+                             "In Stock"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>₹{item.price?.toFixed(2) || 'N/A'}</TableCell>
+                        <TableCell>
+                          <div className={
+                            new Date(item.expirationDate) <= new Date() ? "text-red-600" :
+                            new Date(item.expirationDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) ? "text-yellow-600" :
+                            ""
+                          }>
+                            {new Date(item.expirationDate).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedInventoryItem(item);
+                                setShowRestockModal(true);
+                              }}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {filteredInventory.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  {searchTerm ? `No medications found matching "${searchTerm}"` : "No inventory items found"}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -328,6 +562,149 @@ const PharmacyDashboard = () => {
           </Card>
         </div>
       </div>
+
+      {/* Add Medication Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Add New Medication</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddModal(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Medication Name *</label>
+                <Input placeholder="Enter medication name" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Category</label>
+                <Input placeholder="e.g., Antibiotics, Pain Relief" />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Current Stock *</label>
+                  <Input type="number" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Min Stock *</label>
+                  <Input type="number" placeholder="10" />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Unit Price</label>
+                <Input type="number" placeholder="0.00" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Batch Number</label>
+                <Input placeholder="Enter batch number" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Expiration Date</label>
+                <Input type="date" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Supplier</label>
+                <Input placeholder="Supplier name" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Location</label>
+                <Input placeholder="e.g., A1-B2, Shelf 1" />
+              </div>
+              
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1 medical-gradient text-white">
+                  Add Medication
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restock Modal */}
+      {showRestockModal && selectedInventoryItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Restock {selectedInventoryItem.name}</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowRestockModal(false);
+                  setSelectedInventoryItem(null);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Current Stock</label>
+                <Input value={selectedInventoryItem.currentStock} disabled />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Add Quantity</label>
+                <Input type="number" placeholder="Enter quantity to add" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Batch Number</label>
+                <Input placeholder="Enter batch number" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Expiration Date</label>
+                <Input type="date" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Unit Price</label>
+                <Input type="number" placeholder="Enter unit price" />
+              </div>
+              
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1 medical-gradient text-white">
+                  Confirm Restock
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setShowRestockModal(false);
+                    setSelectedInventoryItem(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -22,7 +22,6 @@ const PatientDashboard = () => {
   const [patient, setPatient] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
-  const [labResults, setLabResults] = useState<any[]>([]);
   const [showBookModal, setShowBookModal] = useState(false);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showPrescriptionsModal, setShowPrescriptionsModal] = useState(false);
@@ -69,18 +68,6 @@ const PatientDashboard = () => {
             return patientUser?.toString() === user?.id;
           })
         );
-        // Fetch lab results for this patient (not shown, but keep for future)
-        const labRes = await request('/labreports');
-        setLabResults(
-          labRes.labReports.filter((l: any) => {
-            const patientUser = l?.patient?.user;
-            if (!patientUser) return false;
-            if (typeof patientUser === 'object') {
-              return patientUser._id?.toString() === user?.id;
-            }
-            return patientUser?.toString() === user?.id;
-          })
-        );
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -106,14 +93,6 @@ const PatientDashboard = () => {
       })));
       request('/prescriptions').then(presRes => setPrescriptions(presRes.prescriptions.filter((p: any) => {
         const patientUser = p?.patient?.user;
-        if (!patientUser) return false;
-        if (typeof patientUser === 'object') {
-          return patientUser._id?.toString() === user?.id;
-        }
-        return patientUser?.toString() === user?.id;
-      })));
-      request('/labreports').then(labRes => setLabResults(labRes.labReports.filter((l: any) => {
-        const patientUser = l?.patient?.user;
         if (!patientUser) return false;
         if (typeof patientUser === 'object') {
           return patientUser._id?.toString() === user?.id;
@@ -168,7 +147,7 @@ const PatientDashboard = () => {
                 Book Appointment
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
               <DialogHeader>
                 <DialogTitle>Book Appointment</DialogTitle>
               </DialogHeader>
@@ -182,7 +161,7 @@ const PatientDashboard = () => {
                 View Records
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
               <DialogHeader>
                 <DialogTitle>Medical Records</DialogTitle>
               </DialogHeader>
@@ -209,7 +188,7 @@ const PatientDashboard = () => {
                 Prescriptions
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto mx-4">
               <DialogHeader>
                 <DialogTitle>Prescriptions</DialogTitle>
               </DialogHeader>

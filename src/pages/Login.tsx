@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Heart, User, Stethoscope, Shield, Pill } from 'lucide-react';
+import { User, Stethoscope, Shield, Pill } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/authContext';
 
@@ -66,11 +66,13 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <div className="medical-gradient p-3 rounded-lg mr-3">
-            <Heart className="h-8 w-8 text-white" />
-          </div>
+          <img 
+            src="/medsync_logo.png" 
+            alt="MedSync Logo" 
+            className="h-24 w-auto object-contain mr-5" 
+          />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">MedSync</h1>
+            <h1 className="text-3xl font-bold text-gray-900">MedSync</h1>
             <p className="text-sm text-gray-500">Smart Healthcare Login</p>
           </div>
         </div>
