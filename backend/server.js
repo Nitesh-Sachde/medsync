@@ -19,10 +19,31 @@ require('./models/Department');
 require('./models/Inventory');
 require('./models/Hospital');
 require('./models/ChatSession');
+require('./models/Approval');
+require('./models/Activity');
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'Backend is working!', 
+    timestamp: new Date(),
+    endpoints: [
+      '/api/auth/login',
+      '/api/auth/register', 
+      '/api/users',
+      '/api/approvals',
+      '/api/activities',
+      '/api/patients',
+      '/api/doctors',
+      '/api/appointments',
+      '/api/departments'
+    ]
+  });
 });
 
 // Auth routes
@@ -57,6 +78,12 @@ app.use('/api/users', require('./routes/user'));
 
 // AI Chat routes
 app.use('/api/ai-chat', require('./routes/aiChat'));
+
+// Approval routes
+app.use('/api/approvals', require('./routes/approval'));
+
+// Activity routes
+app.use('/api/activities', require('./routes/activity'));
 
 // MongoDB connection
 const PORT = process.env.PORT || 5000;

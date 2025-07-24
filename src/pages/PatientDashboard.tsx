@@ -129,7 +129,12 @@ const PatientDashboard = () => {
                 <Phone className="h-4 w-4 mr-2" />
                 Emergency
               </Button>
-              <Button className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded" onClick={() => { logout(); setTimeout(() => navigate('/'), 100); }}>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+                onClick={() => { logout(); setTimeout(() => navigate('/'), 100); }}
+              >
                 Logout
               </Button>
             </div>

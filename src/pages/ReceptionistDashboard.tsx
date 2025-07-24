@@ -141,29 +141,48 @@ const ReceptionistDashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <Button className="h-16 medical-gradient text-white flex flex-col items-center justify-center">
+          <Button 
+            className="h-16 medical-gradient text-white flex flex-col items-center justify-center"
+            onClick={() => {/* Navigate to patient registration */}}
+          >
             <UserPlus className="h-5 w-5 mb-1" />
             Register Patient
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button 
+            variant="outline" 
+            className="h-16 flex flex-col items-center justify-center hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+            onClick={() => {/* Open appointment booking modal */}}
+          >
             <Calendar className="h-5 w-5 mb-1" />
             Book Appointment
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button 
+            variant="outline" 
+            className="h-16 flex flex-col items-center justify-center hover:bg-green-50 hover:text-green-600 hover:border-green-300"
+            onClick={() => {/* Open check-in functionality */}}
+          >
             <CheckCircle className="h-5 w-5 mb-1" />
             Check-in Patient
           </Button>
-          <Button variant="destructive" className="h-16 flex flex-col items-center justify-center">
+          <Button 
+            variant="outline" 
+            className="h-16 flex flex-col items-center justify-center hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+            onClick={() => {/* Handle emergency registration */}}
+          >
             <AlertTriangle className="h-5 w-5 mb-1" />
             Emergency
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col items-center justify-center">
+          <Button 
+            variant="outline" 
+            className="h-16 flex flex-col items-center justify-center hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+            onClick={() => {/* Open patient calling functionality */}}
+          >
             <Phone className="h-5 w-5 mb-1" />
             Call Patient
           </Button>
           <AIChatModal title="AI Reception Assistant - Patient Support">
-            <Button variant="outline" className="h-16 flex flex-col items-center justify-center hover:bg-orange-50 border-orange-200 hover:border-orange-300">
-              <Bot className="h-5 w-5 mb-1 text-orange-600" />
+            <Button variant="outline" className="h-16 flex flex-col items-center justify-center hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300">
+              <Bot className="h-5 w-5 mb-1" />
               AI Assistant
             </Button>
           </AIChatModal>
@@ -180,7 +199,9 @@ const ReceptionistDashboard = () => {
                   className="pl-10"
                 />
               </div>
-              <Button>Search</Button>
+              <Button onClick={() => {/* Implement patient search functionality */}}>
+                Search
+              </Button>
             </div>
           </CardContent>
         </Card>

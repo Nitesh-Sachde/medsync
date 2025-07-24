@@ -584,7 +584,12 @@ const DoctorDashboard = () => {
                 <Phone className="h-4 w-4 mr-2" />
                 Emergency
               </Button>
-              <Button variant="destructive" size="sm" onClick={handleLogout}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+                onClick={handleLogout}
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>

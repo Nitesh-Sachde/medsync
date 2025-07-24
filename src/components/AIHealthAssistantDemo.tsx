@@ -25,6 +25,7 @@ const AIHealthAssistantDemo = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
 
   const sampleQuestions = [
     "What are the symptoms of common cold?",
@@ -40,6 +41,11 @@ const AIHealthAssistantDemo = () => {
   };
 
   useEffect(() => {
+    // Skip scroll on initial mount, only scroll when new messages are added
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     scrollToBottom();
   }, [messages]);
 

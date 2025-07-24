@@ -24,6 +24,8 @@ const PharmacyDashboard = () => {
   const [inventory, setInventory] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   // Computed values
   const filteredInventory = inventory.filter(item =>
@@ -499,7 +501,14 @@ const PharmacyDashboard = () => {
                             >
                               <RefreshCw className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setEditingItem(item);
+                                setShowEditModal(true);
+                              }}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                           </div>
@@ -701,6 +710,84 @@ const PharmacyDashboard = () => {
                   Cancel
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Edit Inventory Modal */}
+      {showEditModal && editingItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">Edit Inventory Item</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <Input
+                  value={editingItem.name}
+                  onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
+                  placeholder="Medicine name"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Current Stock</label>
+                  <Input
+                    type="number"
+                    value={editingItem.currentStock}
+                    onChange={(e) => setEditingItem({...editingItem, currentStock: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Minimum Stock</label>
+                  <Input
+                    type="number"
+                    value={editingItem.minimumStock}
+                    onChange={(e) => setEditingItem({...editingItem, minimumStock: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Expiration Date</label>
+                <Input
+                  type="date"
+                  value={editingItem.expirationDate ? new Date(editingItem.expirationDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) => setEditingItem({...editingItem, expirationDate: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="flex space-x-4 mt-6">
+              <Button 
+                className="medical-gradient text-white flex-1"
+                onClick={async () => {
+                  try {
+                    await request(`/inventory/${editingItem._id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(editingItem)
+                    });
+                    setShowEditModal(false);
+                    setEditingItem(null);
+                    // Refresh inventory
+                    const invRes = await request('/inventory');
+                    setInventory(invRes.inventories);
+                  } catch (error) {
+                    console.error('Failed to update inventory:', error);
+                  }
+                }}
+              >
+                Update Item
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingItem(null);
+                }}
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         </div>
