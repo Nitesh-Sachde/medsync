@@ -14,6 +14,8 @@ const UserSchema = new mongoose.Schema({
   mustChangePassword: { type: Boolean, default: false },
   hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' },
   active: { type: Boolean, default: true },
+  resetPasswordOTP: { type: String },
+  resetPasswordOTPExpires: { type: Date },
 }, { timestamps: true });
 
 UserSchema.pre('save', async function (next) {

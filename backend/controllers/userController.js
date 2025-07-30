@@ -24,24 +24,84 @@ exports.createUser = async (req, res) => {
       await doctor.save();
       extra.doctor = doctor;
     }
-    // Send email with credentials
-    // const transporter = nodemailer.createTransport({
-    //   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-    //   port: process.env.SMTP_PORT || 587,
-    //   auth: {
-    //     user: process.env.SMTP_USER || 'your_ethereal_user',
-    //     pass: process.env.SMTP_PASS || 'your_ethereal_pass',
-    //   },
-    // });
-    // await transporter.sendMail({
-    //   from: 'no-reply@medsync.com',
-    //   to: email,
-    //   subject: 'Your MedSync Account',
-    //   text: `Hello ${name},\n\nYour account has been created.\n\nLogin Email: ${email}\nPassword: ${password}\n\nPlease log in and change your password immediately.\n\nMedSync Team`,
-    // });
-    console.log(email, password);
-    res.status(201).json({ user, ...extra });
+    
+    // Send email with credentials for non-patient roles (excluding super-admin)
+    let emailSent = false;
+    if (role !== 'patient' && role !== 'super-admin') {
+      // Only attempt to send email if SMTP credentials are configured
+      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        try {
+          const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: process.env.SMTP_PORT || 587,
+            secure: false,
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            },
+            timeout: 10000, // 10 second timeout
+          });
+          
+          await transporter.sendMail({
+            from: process.env.SMTP_USER || 'no-reply@medsync.com',
+            to: email,
+            subject: 'Your MedSync Account - Login Credentials',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">MedSync</h1>
+                  <p style="color: white; margin: 5px 0;">Healthcare Management System</p>
+                </div>
+                <div style="padding: 30px; background: #f9f9f9;">
+                  <h2 style="color: #333;">Welcome to MedSync!</h2>
+                  <p style="color: #666; line-height: 1.6;">
+                    Hello ${name},<br><br>
+                    Your ${role} account has been successfully created. Here are your login credentials:
+                  </p>
+                  <div style="background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <p style="margin: 10px 0;"><strong>Email:</strong> ${email}</p>
+                    <p style="margin: 10px 0;"><strong>Password:</strong> ${password}</p>
+                    <p style="margin: 10px 0;"><strong>Role:</strong> ${role.charAt(0).toUpperCase() + role.slice(1)}</p>
+                  </div>
+                  <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <p style="color: #856404; margin: 0;">
+                      <strong>Important:</strong> Please log in and change your password immediately for security purposes.
+                    </p>
+                  </div>
+                  <p style="color: #666; line-height: 1.6;">
+                    You can access your dashboard at: <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="color: #667eea;">MedSync Login</a>
+                  </p>
+                  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <p style="color: #999; font-size: 12px;">
+                      This is an automated message from MedSync. Please do not reply to this email.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            `,
+          });
+          emailSent = true;
+          console.log(`Credentials email sent to ${email}`);
+        } catch (emailError) {
+          console.error('Failed to send credentials email:', emailError.message);
+          // Continue without failing the user creation
+          emailSent = false;
+        }
+      } else {
+        console.log('SMTP not configured. Account created:', email, password);
+      }
+    } else {
+      console.log('Account created:', email, password);
+    }
+
+    res.status(201).json({ 
+      user, 
+      ...extra,
+      message: 'User created successfully',
+      emailSent: emailSent || false
+    });
   } catch (err) {
+    console.error('Error creating user:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -120,4 +180,4 @@ exports.toggleUserActive = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
-}; 
+};

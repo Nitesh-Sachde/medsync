@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
 import NewConsultationModal from '../components/NewConsultationModal';
 import AIChatModal from '../components/AIChatModal';
-import jsPDF from 'jspdf';
+import { generatePrescriptionPDF } from '@/lib/prescriptionPdf';
 import { formatDateDMY } from '@/lib/utils';
 
 const DoctorDashboard = () => {
@@ -443,108 +443,14 @@ const DoctorDashboard = () => {
   const addMedicine = () => setConsultDetails(prev => ({ ...prev, medicines: [...prev.medicines, { name: '', dosage: '', duration: '' }] }));
   const removeMedicine = (idx: number) => setConsultDetails(prev => ({ ...prev, medicines: prev.medicines.filter((_, i) => i !== idx) }));
 
-  // Add this function inside DoctorDashboard component
+  // Enhanced prescription PDF generation using shared function
   const handleDownloadPrescriptionPDF = async (prescription) => {
-    const doc = new jsPDF();
-    // Add MedSync logo (assume public/medsync_logo.png)
-    const logoUrl = '/medsync_logo.png';
-    // Load image as base64
-    const getImageBase64 = (url) => new Promise((resolve) => {
-      const img = new window.Image();
-      img.crossOrigin = 'Anonymous';
-      img.onload = function () {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      };
-      img.src = url;
-    });
-    const logoBase64 = await getImageBase64(logoUrl);
-    doc.addImage(logoBase64, 'PNG', 12, 8, 18, 18);
-
-    // Header
-    doc.setFontSize(16);
-    doc.text('MedSync Hospital', 105, 16, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text('123, MedSync Center, City, State, 123456', 105, 21, { align: 'center' });
-    doc.text('Phone: +91-1234567890 | Email: info@medsync.com', 105, 25, { align: 'center' });
-    doc.setLineWidth(0.5);
-    doc.line(10, 28, 200, 28);
-
-    // Doctor Info
-    doc.setFontSize(11);
-    doc.text(`Dr. ${prescription.doctor?.user?.name || 'Doctor Name'}`, 12, 34);
-    doc.text('Reg. No: 123456', 12, 39);
-    doc.text('Specialist: General Medicine', 12, 44);
-
-    // Patient Info
-    doc.text(`Patient: ${prescription.patient?.user?.name || prescription.patient?.name || 'Unknown'}`, 120, 34);
-    doc.text(`Date: ${prescription.date || ''}`, 120, 39);
-    doc.text(`Status: ${prescription.status || ''}`, 120, 44);
-
-    // Diagnosis & Notes
-    let y = 50;
-    if (prescription.diagnosis) {
-      doc.setFontSize(11);
-      doc.text('Diagnosis:', 12, y);
-      doc.setFont('helvetica', 'italic');
-      doc.text(prescription.diagnosis, 35, y);
-      doc.setFont('helvetica', 'normal');
-      y += 6;
+    try {
+      await generatePrescriptionPDF(prescription);
+    } catch (error) {
+      console.error('Error generating prescription PDF:', error);
+      // You could add a toast notification here for better UX
     }
-    if (prescription.notes) {
-      doc.setFontSize(11);
-      doc.text('Notes:', 12, y);
-      doc.setFont('helvetica', 'italic');
-      doc.text(prescription.notes, 30, y);
-      doc.setFont('helvetica', 'normal');
-      y += 6;
-    }
-
-    // Medicines Table
-    doc.setFontSize(12);
-    doc.text('Prescription:', 12, y);
-    y += 4;
-    doc.setFontSize(10);
-    doc.setFillColor(220, 220, 220);
-    doc.rect(12, y, 186, 8, 'F');
-    doc.text('Medicine', 15, y + 6);
-    doc.text('Dosage', 70, y + 6);
-    doc.text('Duration', 110, y + 6);
-    doc.text('Instructions', 150, y + 6);
-    y += 10;
-    const meds = (prescription.medication || '').split(',').map(m => m.trim());
-    meds.forEach((med, idx) => {
-      // Try to split: Name (Dosage, Duration)
-      const match = med.match(/^(.*?) \((.*?), (.*?)\)$/);
-      let name = med, dosage = '', duration = '', instr = '';
-      if (match) {
-        name = match[1];
-        dosage = match[2];
-        duration = match[3];
-      }
-      doc.text(name, 15, y);
-      doc.text(dosage, 70, y);
-      doc.text(duration, 110, y);
-      doc.text(instr, 150, y);
-      y += 7;
-    });
-
-    // Footer
-    y += 10;
-    doc.setLineWidth(0.2);
-    doc.line(12, 265, 198, 265);
-    doc.setFontSize(10);
-    doc.text('Doctor Signature:', 15, 270);
-    doc.text('This is a computer-generated prescription. Signature not required.', 105, 278, { align: 'center' });
-    doc.setFontSize(11);
-    doc.setTextColor(0, 102, 204);
-    doc.text('Powered by MedSync', 170, 278, { align: 'right' });
-
-    doc.save(`E-Prescription_${prescription.patient?.user?.name || prescription.patient?.name || 'Unknown'}_${prescription.date || ''}.pdf`);
   };
 
   // In the recent patients section, sort patients descending by last appointment date

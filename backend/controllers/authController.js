@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
@@ -68,3 +70,161 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 }; 
+
+// Generate 6-digit OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Create nodemailer transporter
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: process.env.SMTP_PORT || 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found with this email address' });
+    }
+
+    // Check if user is super-admin (not allowed)
+    if (user.role === 'super-admin') {
+      return res.status(403).json({ message: 'Password reset not available for super admin' });
+    }
+
+    // Generate OTP and set expiration (10 minutes)
+    const otp = generateOTP();
+    user.resetPasswordOTP = otp;
+    user.resetPasswordOTPExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await user.save();
+
+    // Send OTP via email
+    try {
+      const transporter = createTransporter();
+      await transporter.sendMail({
+        from: process.env.SMTP_USER || 'no-reply@medsync.com',
+        to: email,
+        subject: 'MedSync - Password Reset OTP',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+              <h1 style="color: white; margin: 0;">MedSync</h1>
+              <p style="color: white; margin: 5px 0;">Healthcare Management System</p>
+            </div>
+            <div style="padding: 30px; background: #f9f9f9;">
+              <h2 style="color: #333;">Password Reset Request</h2>
+              <p style="color: #666; line-height: 1.6;">
+                Hello ${user.name},<br><br>
+                You requested a password reset for your MedSync account. Use the following OTP to reset your password:
+              </p>
+              <div style="background: white; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h1 style="color: #667eea; font-size: 36px; margin: 0; letter-spacing: 4px;">${otp}</h1>
+                <p style="color: #999; margin: 10px 0 0 0;">This OTP will expire in 10 minutes</p>
+              </div>
+              <p style="color: #666; line-height: 1.6;">
+                If you didn't request this password reset, please ignore this email or contact support if you have concerns.
+              </p>
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                <p style="color: #999; font-size: 12px;">
+                  This is an automated message from MedSync. Please do not reply to this email.
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+      });
+
+      res.json({ 
+        message: 'Password reset OTP sent to your email address',
+        email: email 
+      });
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Reset OTP fields if email fails
+      user.resetPasswordOTP = undefined;
+      user.resetPasswordOTPExpires = undefined;
+      await user.save();
+      
+      res.status(500).json({ 
+        message: 'Failed to send reset email. Please try again later.',
+        error: 'Email service unavailable'
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    const user = await User.findOne({ 
+      email,
+      resetPasswordOTP: otp,
+      resetPasswordOTPExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // Update password and clear OTP fields
+    user.password = newPassword;
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpires = undefined;
+    user.mustChangePassword = false;
+    await user.save();
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const user = await User.findOne({ 
+      email,
+      resetPasswordOTP: otp,
+      resetPasswordOTPExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    res.json({ message: 'OTP verified successfully', valid: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
