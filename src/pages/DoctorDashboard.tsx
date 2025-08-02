@@ -26,6 +26,22 @@ const DoctorDashboard = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
+
+  // Helper function to format health summary
+  const formatHealthSummary = (healthSummary: any) => {
+    if (!healthSummary) return 'No health summary available';
+    if (typeof healthSummary === 'string') return healthSummary;
+    if (typeof healthSummary === 'object') {
+      const parts = [];
+      if (healthSummary.bloodPressure) parts.push(`BP: ${healthSummary.bloodPressure}`);
+      if (healthSummary.weight) parts.push(`Weight: ${healthSummary.weight}`);
+      if (healthSummary.glucose) parts.push(`Glucose: ${healthSummary.glucose}`);
+      if (healthSummary.heartRate) parts.push(`HR: ${healthSummary.heartRate}`);
+      return parts.length > 0 ? parts.join(', ') : 'No health data';
+    }
+    return 'No health summary available';
+  };
+
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showPrescriptionsModal, setShowPrescriptionsModal] = useState(false);
   const [consultForm, setConsultForm] = useState({
@@ -878,7 +894,7 @@ const DoctorDashboard = () => {
                         <h4 className="font-medium">{patient.user?.name || patient.name || 'Unknown Patient'}</h4>
                         <p className="text-sm text-gray-600">{patient.user?.contact || 'No contact info'}</p>
                         <p className="text-sm text-gray-500">
-                          Health Summary: {patient.healthSummary || 'No health summary available'}
+                          Health Summary: {formatHealthSummary(patient.healthSummary)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1013,7 +1029,7 @@ const DoctorDashboard = () => {
                   </div>
                   <div>
                     <span className="font-medium">Health Summary: </span>
-                    {selectedPatient.healthSummary || 'N/A'}
+                    {formatHealthSummary(selectedPatient.healthSummary)}
                   </div>
                 </div>
               </div>
@@ -1131,7 +1147,7 @@ const DoctorDashboard = () => {
                   <div><span className="font-medium">Email: </span>{selectedMedicalRecordsPatient?.user?.email || 'N/A'}</div>
                   <div><span className="font-medium">Age: </span>{selectedMedicalRecordsPatient?.user?.age || 'N/A'}</div>
                   <div><span className="font-medium">Gender: </span>{selectedMedicalRecordsPatient?.user?.gender || 'N/A'}</div>
-                  <div><span className="font-medium">Health Summary: </span>{selectedMedicalRecordsPatient?.healthSummary || 'N/A'}</div>
+                  <div><span className="font-medium">Health Summary: </span>{formatHealthSummary(selectedMedicalRecordsPatient?.healthSummary)}</div>
                 </div>
               </div>
               {/* Appointments */}

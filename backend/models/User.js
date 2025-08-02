@@ -11,6 +11,8 @@ const UserSchema = new mongoose.Schema({
     required: true
   },
   contact: { type: String },
+  age: { type: Number },
+  gender: { type: String, enum: ['male', 'female', 'other'] },
   mustChangePassword: { type: Boolean, default: false },
   hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' },
   active: { type: Boolean, default: true },

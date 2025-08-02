@@ -44,13 +44,8 @@ exports.createHospitalAndAdmin = async (req, res) => {
 exports.getAllHospitals = async (req, res) => {
   try {
     if (req.user.role !== 'super-admin') return res.status(403).json({ message: 'Access denied' });
-    // Populate admins for each hospital
-    const hospitals = await require('../models/Hospital').find().lean();
-    // For each hospital, find admins
-    const User = require('../models/User');
-    for (const hospital of hospitals) {
-      hospital.admins = await User.find({ hospitalId: hospital._id, role: 'admin' }).select('-password');
-    }
+    // Populate admins for each hospital using the new admins array
+    const hospitals = await Hospital.find().populate('admins', 'name email contact role').lean();
     res.json({ hospitals });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

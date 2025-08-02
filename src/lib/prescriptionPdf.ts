@@ -117,14 +117,15 @@ export async function generatePrescriptionPDF(prescription: any) {
   doc.text(prescription.patient?.user?.name || prescription.patient?.name || 'Not provided', leftCol + 30, currentY);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Age/DOB:', leftCol, currentY + 8);
+  doc.text('Age:', leftCol, currentY + 8);
   doc.setFont('helvetica', 'normal');
-  doc.text(prescription.patient?.dateOfBirth || 'Not provided', leftCol + 30, currentY + 8);
+  const age = prescription.patient?.user?.age || 'Not provided';
+  doc.text(age.toString(), leftCol + 30, currentY + 8);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Gender:', leftCol, currentY + 16);
   doc.setFont('helvetica', 'normal');
-  doc.text(prescription.patient?.gender || 'Not specified', leftCol + 30, currentY + 16);
+  doc.text(prescription.patient?.user?.gender || 'Not specified', leftCol + 30, currentY + 16);
 
   // Right column
   const patientId = prescription.patient?._id || prescription.patient?.id || '';
@@ -138,7 +139,7 @@ export async function generatePrescriptionPDF(prescription: any) {
   doc.setFont('helvetica', 'bold');
   doc.text('Contact:', rightCol, currentY + 8);
   doc.setFont('helvetica', 'normal');
-  doc.text(prescription.patient?.phone || 'Not provided', rightCol + 25, currentY + 8);
+  doc.text(prescription.patient?.user?.contact || 'Not provided', rightCol + 25, currentY + 8);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Blood Group:', rightCol, currentY + 16);
