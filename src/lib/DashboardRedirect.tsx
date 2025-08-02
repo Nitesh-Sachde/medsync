@@ -17,14 +17,11 @@ const DashboardRedirect: React.FC = () => {
       return <Navigate to="/admin-dashboard" replace />;
     case 'doctor':
       return <Navigate to="/doctor-dashboard" replace />;
-    case 'pharmacist':
-      return <Navigate to="/pharmacy-dashboard" replace />;
-    case 'receptionist':
-      return <Navigate to="/receptionist-dashboard" replace />;
     case 'patient':
       return <Navigate to="/patient-dashboard" replace />;
     default:
-      return <Navigate to="/" replace />;
+      // For removed roles (pharmacist, receptionist), redirect to login with message
+      return <Navigate to="/login" replace />;
   }
 };
 

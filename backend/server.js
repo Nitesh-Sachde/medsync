@@ -15,8 +15,6 @@ require('./models/Patient');
 require('./models/Doctor');
 require('./models/Appointment');
 require('./models/Prescription');
-require('./models/Department');
-require('./models/Inventory');
 require('./models/Hospital');
 require('./models/ChatSession');
 require('./models/Approval');
@@ -41,7 +39,8 @@ app.get('/api/test', (req, res) => {
       '/api/patients',
       '/api/doctors',
       '/api/appointments',
-      '/api/departments'
+      '/api/prescriptions',
+      '/api/hospitals'
     ]
   });
 });
@@ -60,12 +59,6 @@ app.use('/api/appointments', require('./routes/appointment'));
 
 // Prescription routes
 app.use('/api/prescriptions', require('./routes/prescription'));
-
-// Inventory routes
-app.use('/api/inventory', require('./routes/inventory'));
-
-// Department routes
-app.use('/api/departments', require('./routes/department'));
 
 // Hospital routes
 app.use('/api/hospitals', require('./routes/hospital'));

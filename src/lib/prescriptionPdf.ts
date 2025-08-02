@@ -10,459 +10,330 @@ export async function generatePrescriptionPDF(prescription: any) {
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
 
-  // Modern professional color scheme
-  const primaryColor: [number, number, number] = [41, 98, 255]; // Modern blue
-  const secondaryColor: [number, number, number] = [59, 130, 246]; // Light blue
-  const accentColor: [number, number, number] = [16, 185, 129]; // Emerald green
-  const warningColor: [number, number, number] = [245, 158, 11]; // Amber
-  const errorColor: [number, number, number] = [239, 68, 68]; // Red
-  const textPrimary: [number, number, number] = [31, 41, 55]; // Gray-800
-  const textSecondary: [number, number, number] = [75, 85, 99]; // Gray-600
-  const backgroundLight: [number, number, number] = [249, 250, 251]; // Gray-50
-  const borderColor: [number, number, number] = [209, 213, 219]; // Gray-300
+  // Clean, modern color scheme
+  const primaryBlue: [number, number, number] = [37, 99, 235]; // Blue-600
+  const lightBlue: [number, number, number] = [219, 234, 254]; // Blue-100
+  const grayText: [number, number, number] = [55, 65, 81]; // Gray-700
+  const lightGray: [number, number, number] = [156, 163, 175]; // Gray-400
+  const darkGray: [number, number, number] = [31, 41, 55]; // Gray-800
   const white: [number, number, number] = [255, 255, 255];
 
-  // Helper functions
-  const addRoundedRect = (
-    x: number, 
-    y: number, 
-    width: number, 
-    height: number, 
-    radius: number = 2, 
-    fillColor?: [number, number, number], 
-    strokeColor?: [number, number, number],
-    strokeWidth: number = 0.5
-  ) => {
-    if (fillColor) {
-      doc.setFillColor(...fillColor);
-      doc.roundedRect(x, y, width, height, radius, radius, 'F');
-    }
-    if (strokeColor) {
-      doc.setDrawColor(...strokeColor);
-      doc.setLineWidth(strokeWidth);
-      doc.roundedRect(x, y, width, height, radius, radius, 'S');
-    }
-  };
-
-  const addSectionHeader = (
-    title: string, 
-    y: number, 
-    bgColor: [number, number, number] = primaryColor,
-    textColor: [number, number, number] = white
-  ) => {
-    // Modern section header with subtle shadow
-    addRoundedRect(margin + 1, y + 1, contentWidth, 12, 3, [220, 220, 220]); // Shadow
-    addRoundedRect(margin, y, contentWidth, 12, 3, bgColor);
-    
-    // Section title
-    doc.setTextColor(...textColor);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(title, margin + 8, y + 8);
-    
-    return y + 20;
-  };
-
-  const addInfoCard = (
-    title: string, 
-    value: string, 
-    x: number, 
-    y: number, 
-    width: number, 
-    height: number = 18,
-    headerColor: [number, number, number] = primaryColor
-  ) => {
-    // Card with subtle shadow and modern styling
-    addRoundedRect(x + 0.5, y + 0.5, width, height, 3, [230, 230, 230]); // Shadow
-    addRoundedRect(x, y, width, height, 3, white, borderColor);
-    
-    // Header strip
-    addRoundedRect(x, y, width, 5, 3, headerColor);
-    
-    // Title
-    doc.setTextColor(...white);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.text(title.toUpperCase(), x + 4, y + 3.5);
-    
-    // Value
-    doc.setTextColor(...textPrimary);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    
-    // Handle long text with word wrapping
-    const maxWidth = width - 8;
-    const valueLines = doc.splitTextToSize(value || 'Not provided', maxWidth);
-    const startY = y + 10;
-    
-    // Limit to 2 lines to maintain card height
-    const displayLines = valueLines.slice(0, 2);
-    if (valueLines.length > 2) {
-      displayLines[1] = displayLines[1].substring(0, displayLines[1].length - 3) + '...';
-    }
-    
-    displayLines.forEach((line: string, index: number) => {
-      doc.text(line, x + 4, startY + (index * 4));
-    });
-    
-    return y + height + 3;
-  };
-
-  // Enhanced logo handling with better contrast
-  const logoUrl = '/medsync_logo.png';
-  const getImageBase64 = (url: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new window.Image();
-      img.crossOrigin = 'Anonymous';
+  // Function to load logo
+  const loadLogo = (): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
       
-      img.onload = function() {
+      img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          
           if (!ctx) {
-            reject('Canvas context not available');
+            resolve(null);
             return;
           }
           
           canvas.width = img.width;
           canvas.height = img.height;
-          
-          // Create white background for logo
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          // Draw the logo on white background
           ctx.drawImage(img, 0, 0);
           
-          resolve(canvas.toDataURL('image/png'));
+          const dataURL = canvas.toDataURL('image/png');
+          resolve(dataURL);
         } catch (error) {
-          reject(error);
+          console.warn('Error processing logo:', error);
+          resolve(null);
         }
       };
       
-      img.onerror = () => reject('Image load failed');
-      img.src = url;
+      img.onerror = () => {
+        console.warn('Logo failed to load');
+        resolve(null);
+      };
+      
+      img.src = '/medsync_logo.png';
     });
   };
 
-  // Modern header design
-  let y = 0;
-  
-  // Header background with gradient effect
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 45, 'F');
-  
-  // Add lighter overlay for depth
-  doc.setFillColor(primaryColor[0] + 20, primaryColor[1] + 20, primaryColor[2] + 20);
-  doc.rect(0, 0, pageWidth, 22, 'F');
+  // Load logo before generating PDF
+  const logoData = await loadLogo();
 
-  // Try to load and add logo with proper contrast
-  try {
-    const logoBase64 = await getImageBase64(logoUrl);
-    
-    // Logo with white background for contrast
-    const logoSize = 35;
-    addRoundedRect(margin - 2, 8, logoSize + 4, 20, 4, white);
-    doc.addImage(logoBase64, 'PNG', margin, 10, logoSize, 16);
-    
-    // Subtle watermark in center
-    const watermarkSize = 60;
-    const centerX = (pageWidth - watermarkSize) / 2;
-    const centerY = 120;
-    doc.addImage(logoBase64, 'PNG', centerX, centerY, watermarkSize, 24, undefined, 'FAST', 0.03);
-    
-  } catch (error) {
-    console.warn('Logo not loaded, using text fallback');
-    
-    // Fallback with medical symbol
-    addRoundedRect(margin - 2, 8, 40, 20, 4, white);
-    doc.setTextColor(...primaryColor);
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('⚕️ MS', margin + 8, 22);
+  let currentY = margin;
+
+  // Clean header with hospital name
+  doc.setFillColor(...lightBlue);
+  doc.rect(0, 0, pageWidth, 40, 'F');
+
+  // Add logo if available
+  if (logoData) {
+    try {
+      doc.addImage(logoData, 'PNG', margin, 8, 24, 24);
+    } catch (error) {
+      console.warn('Failed to add logo to PDF:', error);
+    }
   }
 
-  // Hospital information with better typography
-  doc.setTextColor(...white);
-  doc.setFontSize(18);
+  // Hospital name and basic info - positioned to account for logo
+  const textStartX = logoData ? margin + 30 : pageWidth / 2;
+  const textAlign = logoData ? 'left' : 'center';
+
+  doc.setTextColor(...primaryBlue);
+  doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('MEDSYNC HOSPITAL', pageWidth - margin, 15, { align: 'right' });
-  
-  doc.setFontSize(9);
+  doc.text('MEDSYNC HOSPITAL', textStartX, 18, { align: textAlign });
+
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Advanced Digital Healthcare Solutions', pageWidth - margin, 22, { align: 'right' });
-  
-  doc.setFontSize(8);
-  doc.text('123, MedSync Center, Healthcare City, State 123456', pageWidth - margin, 28, { align: 'right' });
-  doc.text('Phone: +91-1234567890 | Email: info@medsync.com', pageWidth - margin, 33, { align: 'right' });
-  doc.text('License: MH-12345 | NABH Accredited', pageWidth - margin, 38, { align: 'right' });
+  doc.setTextColor(...grayText);
+  doc.text('Digital Healthcare Solutions', textStartX, 26, { align: textAlign });
+  doc.text('Phone: +91-1234567890 | Email: info@medsync.com', textStartX, 32, { align: textAlign });
 
-  y = 55;
-
-  // Prescription title with modern design
-  addRoundedRect(margin, y, contentWidth, 16, 4, secondaryColor);
-  addRoundedRect(margin, y, contentWidth, 16, 4, undefined, primaryColor, 1);
-  
-  doc.setTextColor(...white);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('📋 MEDICAL PRESCRIPTION', pageWidth / 2, y + 10, { align: 'center' });
-
-  y += 25;
+  currentY = 50;
 
   // Patient Information Section
-  y = addSectionHeader('PATIENT INFORMATION', y, primaryColor);
-  
-  const cardWidth = (contentWidth - 10) / 3;
-  
-  // First row
-  addInfoCard('Patient Name', prescription.patient?.user?.name || prescription.patient?.name, margin, y, cardWidth, 18, primaryColor);
-  addInfoCard('Date of Birth', prescription.patient?.dateOfBirth, margin + cardWidth + 5, y, cardWidth, 18, primaryColor);
-  addInfoCard('Gender', prescription.patient?.gender, margin + (cardWidth + 5) * 2, y, cardWidth, 18, primaryColor);
-  
-  y += 22;
-  
-  // Second row
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...primaryBlue);
+  doc.text('PATIENT INFORMATION', margin, currentY);
+  currentY += 3;
+
+  // Underline
+  doc.setDrawColor(...primaryBlue);
+  doc.setLineWidth(0.5);
+  doc.line(margin, currentY, margin + 60, currentY);
+  currentY += 10;
+
+  // Patient details in a clean two-column layout
+  const leftCol = margin;
+  const rightCol = margin + (contentWidth / 2);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...grayText);
+
+  // Left column
+  doc.setFont('helvetica', 'bold');
+  doc.text('Patient Name:', leftCol, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(prescription.patient?.user?.name || prescription.patient?.name || 'Not provided', leftCol + 30, currentY);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Age/DOB:', leftCol, currentY + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(prescription.patient?.dateOfBirth || 'Not provided', leftCol + 30, currentY + 8);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Gender:', leftCol, currentY + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.text(prescription.patient?.gender || 'Not specified', leftCol + 30, currentY + 16);
+
+  // Right column
   const patientId = prescription.patient?._id || prescription.patient?.id || '';
   const displayId = patientId ? `#${patientId.slice(-8).toUpperCase()}` : 'Not assigned';
-  
-  addInfoCard('Patient ID', displayId, margin, y, cardWidth, 18, primaryColor);
-  addInfoCard('Contact Number', prescription.patient?.phone, margin + cardWidth + 5, y, cardWidth, 18, primaryColor);
-  addInfoCard('Blood Group', prescription.patient?.bloodGroup, margin + (cardWidth + 5) * 2, y, cardWidth, 18, primaryColor);
 
-  y += 30;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Patient ID:', rightCol, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(displayId, rightCol + 25, currentY);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Contact:', rightCol, currentY + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(prescription.patient?.phone || 'Not provided', rightCol + 25, currentY + 8);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Blood Group:', rightCol, currentY + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.text(prescription.patient?.bloodGroup || 'Not specified', rightCol + 25, currentY + 16);
+
+  currentY += 35;
 
   // Prescription Details Section
-  y = addSectionHeader('PRESCRIPTION DETAILS', y, accentColor);
-  
-  addInfoCard('Prescription Date', formatDateDMY(prescription.date), margin, y, cardWidth, 18, accentColor);
-  
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...primaryBlue);
+  doc.text('PRESCRIPTION DETAILS', margin, currentY);
+  currentY += 3;
+
+  doc.setDrawColor(...primaryBlue);
+  doc.line(margin, currentY, margin + 70, currentY);
+  currentY += 10;
+
+  doc.setFontSize(10);
+  doc.setTextColor(...grayText);
+
+  // Prescription info
+  doc.setFont('helvetica', 'bold');
+  doc.text('Date:', leftCol, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatDateDMY(prescription.date), leftCol + 30, currentY);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Doctor:', leftCol, currentY + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(prescription.doctor?.user?.name || prescription.doctor?.name || 'Not provided', leftCol + 30, currentY + 8);
+
   const prescriptionId = prescription._id || prescription.id || '';
   const displayPrescriptionId = prescriptionId ? `#${prescriptionId.slice(-8).toUpperCase()}` : 'Not assigned';
-  addInfoCard('Prescription ID', displayPrescriptionId, margin + cardWidth + 5, y, cardWidth, 18, accentColor);
-  addInfoCard('Status', (prescription.status || 'Active').toUpperCase(), margin + (cardWidth + 5) * 2, y, cardWidth, 18, accentColor);
 
-  y += 22;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Prescription ID:', rightCol, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(displayPrescriptionId, rightCol + 35, currentY);
 
-  addInfoCard('Attending Doctor', prescription.doctor?.user?.name || prescription.doctor?.name, margin, y, cardWidth, 18, accentColor);
-  addInfoCard('Department', prescription.doctor?.department || prescription.department, margin + cardWidth + 5, y, cardWidth, 18, accentColor);
-  addInfoCard('Hospital', prescription.hospitalId?.name || 'MedSync Hospital', margin + (cardWidth + 5) * 2, y, cardWidth, 18, accentColor);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Department:', rightCol, currentY + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(prescription.doctor?.department || prescription.department || 'General', rightCol + 35, currentY + 8);
 
-  y += 30;
+  currentY += 25;
 
   // Diagnosis Section (if available)
   if (prescription.diagnosis && prescription.diagnosis.trim()) {
-    y = addSectionHeader('CLINICAL DIAGNOSIS', y, warningColor);
-    
-    const diagnosisHeight = 25;
-    addRoundedRect(margin, y, contentWidth, diagnosisHeight, 4, white, borderColor);
-    
-    doc.setTextColor(...textPrimary);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...primaryBlue);
+    doc.text('DIAGNOSIS', margin, currentY);
+    currentY += 3;
+
+    doc.setDrawColor(...primaryBlue);
+    doc.line(margin, currentY, margin + 35, currentY);
+    currentY += 8;
+
+    doc.setFillColor(...lightBlue);
+    doc.rect(margin, currentY, contentWidth, 20, 'F');
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...grayText);
     
-    const diagnosisLines = doc.splitTextToSize(prescription.diagnosis, contentWidth - 16);
+    const diagnosisLines = doc.splitTextToSize(prescription.diagnosis, contentWidth - 10);
     diagnosisLines.forEach((line: string, index: number) => {
-      doc.text(line, margin + 8, y + 10 + (index * 5));
+      doc.text(line, margin + 5, currentY + 8 + (index * 5));
     });
-    
-    y += diagnosisHeight + 15;
+
+    currentY += 30;
   }
 
-  // Medications Section with improved table
-  y = addSectionHeader('PRESCRIBED MEDICATIONS', y, errorColor);
-
-  // Table setup
-  const tableY = y;
-  const headerHeight = 14;
-  const rowHeight = 16;
-  const colWidths = [50, 30, 35, 28, 27];
-  const headers = ['MEDICATION NAME', 'DOSAGE', 'FREQUENCY', 'DURATION', 'INSTRUCTIONS'];
-
-  // Table header
-  addRoundedRect(margin, y, contentWidth, headerHeight, 3, errorColor);
-  
-  doc.setTextColor(...white);
-  doc.setFontSize(9);
+  // Medications Section
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...primaryBlue);
+  doc.text('PRESCRIBED MEDICATIONS', margin, currentY);
+  currentY += 3;
 
-  let colX = margin;
-  headers.forEach((header, index) => {
-    doc.text(header, colX + 4, y + 9);
-    colX += colWidths[index];
-  });
+  doc.setDrawColor(...primaryBlue);
+  doc.line(margin, currentY, margin + 85, currentY);
+  currentY += 10;
 
-  y += headerHeight + 2;
-
-  // Medication rows
   if (Array.isArray(prescription.medications) && prescription.medications.length > 0) {
+    // Simple table for medications
+    const tableHeaders = ['Medicine', 'Dosage', 'Frequency', 'Duration'];
+    const colWidths = [50, 35, 35, 40];
+    
+    // Table header
+    doc.setFillColor(...primaryBlue);
+    doc.rect(margin, currentY, contentWidth, 8, 'F');
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...white);
+    
+    let colX = margin + 2;
+    tableHeaders.forEach((header, index) => {
+      doc.text(header, colX, currentY + 5);
+      colX += colWidths[index];
+    });
+    
+    currentY += 10;
+
+    // Medication rows
     prescription.medications.forEach((med: any, index: number) => {
-      const rowBg = index % 2 === 0 ? white : backgroundLight;
-      addRoundedRect(margin, y, contentWidth, rowHeight, 2, rowBg, borderColor);
+      const rowBg: [number, number, number] = index % 2 === 0 ? [248, 250, 252] : white;
+      doc.setFillColor(...rowBg);
+      doc.rect(margin, currentY, contentWidth, 10, 'F');
 
-      doc.setTextColor(...textPrimary);
       doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...grayText);
 
-      colX = margin;
+      colX = margin + 2;
       const cellData = [
         med.name || 'Not specified',
         med.dosage || 'As directed',
         Array.isArray(med.frequency) ? med.frequency.join(', ') : (med.frequency || 'As needed'),
-        med.duration || 'Consult doctor',
-        med.instructions || 'Take as prescribed'
+        med.duration || 'Consult doctor'
       ];
 
       cellData.forEach((data, cellIndex) => {
-        doc.setFont('helvetica', cellIndex === 0 ? 'bold' : 'normal');
-        const cellLines = doc.splitTextToSize(data, colWidths[cellIndex] - 8);
-        const displayLine = cellLines[0] || '';
-        doc.text(displayLine, colX + 4, y + 10);
+        const truncatedData = data.length > 20 ? data.substring(0, 17) + '...' : data;
+        doc.text(truncatedData, colX, currentY + 6);
         colX += colWidths[cellIndex];
       });
 
-      y += rowHeight + 1;
-
-      // Page break handling
-      if (y > 240) {
-        doc.addPage();
-        y = 30;
-        
-        // Continuation header
-        addRoundedRect(0, 0, pageWidth, 25, 0, backgroundLight);
-        doc.setTextColor(...primaryColor);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('PRESCRIPTION CONTINUED', pageWidth / 2, 15, { align: 'center' });
-        y += 10;
-      }
+      currentY += 10;
     });
   } else {
-    // No medications message
-    addRoundedRect(margin, y, contentWidth, 20, 3, [254, 252, 232], warningColor);
+    doc.setFillColor(254, 252, 232);
+    doc.rect(margin, currentY, contentWidth, 15, 'F');
     
-    doc.setTextColor(...textPrimary);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
-    doc.text('⚠️ No medications prescribed. Please follow up as advised.', pageWidth / 2, y + 12, { align: 'center' });
-    y += 25;
+    doc.setTextColor(...grayText);
+    doc.text('No medications prescribed. Please follow up as advised.', pageWidth / 2, currentY + 8, { align: 'center' });
+    currentY += 20;
   }
 
-  y += 15;
+  currentY += 15;
 
   // Notes Section (if available)
   if (prescription.notes && prescription.notes.trim()) {
-    y = addSectionHeader('ADDITIONAL NOTES', y, secondaryColor);
-    
-    const notesHeight = 25;
-    addRoundedRect(margin, y, contentWidth, notesHeight, 4, white, borderColor);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...primaryBlue);
+    doc.text('ADDITIONAL NOTES', margin, currentY);
+    currentY += 3;
 
-    doc.setFontSize(9);
+    doc.setDrawColor(...primaryBlue);
+    doc.line(margin, currentY, margin + 60, currentY);
+    currentY += 8;
+
+    doc.setFillColor(...lightBlue);
+    doc.rect(margin, currentY, contentWidth, 20, 'F');
+
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...textPrimary);
+    doc.setTextColor(...grayText);
     
-    const notesLines = doc.splitTextToSize(prescription.notes, contentWidth - 16);
+    const notesLines = doc.splitTextToSize(prescription.notes, contentWidth - 10);
     notesLines.forEach((line: string, index: number) => {
-      doc.text(line, margin + 8, y + 8 + (index * 4));
+      doc.text(line, margin + 5, currentY + 8 + (index * 5));
     });
-    
-    y += notesHeight + 15;
+
+    currentY += 30;
   }
 
-  // Medical Instructions
-  y = addSectionHeader('IMPORTANT INSTRUCTIONS', y, warningColor);
+  // Compact footer
+  const footerY = pageHeight - 25;
   
-  const instructions = [
-    '• Take medications exactly as prescribed',
-    '• Complete the full course of treatment',
-    '• Store medications properly and away from children',
-    '• Contact doctor for adverse reactions',
-    '• Bring this prescription for follow-ups'
-  ];
+  doc.setDrawColor(...lightGray);
+  doc.setLineWidth(0.3);
+  doc.line(margin, footerY, pageWidth - margin, footerY);
 
-  const instructionHeight = instructions.length * 5 + 12;
-  addRoundedRect(margin, y, contentWidth, instructionHeight, 4, [255, 251, 235], warningColor);
-
-  doc.setTextColor(...textPrimary);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  
-  instructions.forEach((instruction, index) => {
-    doc.text(instruction, margin + 8, y + 8 + (index * 5));
-  });
-
-  y += instructionHeight + 20;
-
-  // Modern Footer
-  const footerY = pageHeight - 35;
-  
-  // Footer background
-  addRoundedRect(0, footerY - 5, pageWidth, 40, 0, backgroundLight);
-  
-  // Decorative line
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(2);
-  doc.line(margin, footerY - 2, pageWidth - margin, footerY - 2);
-
-  // Footer content
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...textSecondary);
-
-  // Left section
-  const fullPrescriptionId = prescription._id || prescription.id || '';
-  const displayFullId = fullPrescriptionId ? fullPrescriptionId.slice(-12).toUpperCase() : 'Unknown';
-  doc.text(`Prescription ID: ${displayFullId}`, margin, footerY + 5);
-  doc.text(`Issue Date: ${formatDateDMY(prescription.date)}`, margin, footerY + 12);
-  doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, margin, footerY + 19);
-
-  // Center section
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...accentColor);
-  doc.text('✓ DIGITALLY VERIFIED PRESCRIPTION', pageWidth / 2, footerY + 5, { align: 'center' });
-  
-  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(...textSecondary);
-  doc.text('This prescription is electronically generated and authenticated', pageWidth / 2, footerY + 12, { align: 'center' });
-  doc.text('Valid for 30 days from issue date', pageWidth / 2, footerY + 19, { align: 'center' });
-
-  // Right section
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...primaryColor);
-  doc.text('Powered by MedSync', pageWidth - margin, footerY + 5, { align: 'right' });
-  
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(...textSecondary);
-  doc.text('Advanced Healthcare Solutions', pageWidth - margin, footerY + 12, { align: 'right' });
-  doc.text('www.medsync.com', pageWidth - margin, footerY + 19, { align: 'right' });
+  doc.setTextColor(...lightGray);
 
-  // QR Code placeholder
-  const qrSize = 15;
-  const qrX = pageWidth - margin - qrSize - 5;
-  const qrY = footerY + 20;
-  
-  addRoundedRect(qrX, qrY, qrSize, qrSize, 2, white, borderColor);
-  
-  // Simple QR pattern
-  doc.setFillColor(...textPrimary);
-  for (let i = 1; i < qrSize - 1; i += 2) {
-    for (let j = 1; j < qrSize - 1; j += 2) {
-      if ((i + j) % 4 < 2) {
-        doc.rect(qrX + i, qrY + j, 1, 1, 'F');
-      }
-    }
-  }
+  // Footer content - single line
+  doc.text(`Generated: ${new Date().toLocaleDateString()}`, margin, footerY + 6);
+  doc.text('Digitally Generated Prescription', pageWidth / 2, footerY + 6, { align: 'center' });
+  doc.text('Valid 30 days', pageWidth - margin, footerY + 6, { align: 'right' });
 
-  // Generate filename
+  // Generate clean filename
   const patientName = (prescription.patient?.user?.name || prescription.patient?.name || 'Patient')
     .replace(/[^a-zA-Z0-9]/g, '_');
   const prescriptionDate = formatDateDMY(prescription.date).replace(/[^a-zA-Z0-9]/g, '_');
   const prescriptionIdShort = displayPrescriptionId.replace('#', '');
-  const filename = `MedSync_Prescription_${patientName}_${prescriptionDate}_${prescriptionIdShort}.pdf`;
+  const filename = `Prescription_${patientName}_${prescriptionDate}_${prescriptionIdShort}.pdf`;
   
   doc.save(filename);
 }

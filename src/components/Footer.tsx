@@ -49,7 +49,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm">
               <li><span className="text-gray-400">Smart Scheduling</span></li>
               <li><span className="text-gray-400">E-Prescriptions</span></li>
-              <li><span className="text-gray-400">Inventory Management</span></li>
+              <li><span className="text-gray-400">Prescription Management</span></li>
               <li><span className="text-gray-400">Real-time Alerts</span></li>
               <li><span className="text-gray-400">Secure Data Storage</span></li>
             </ul>

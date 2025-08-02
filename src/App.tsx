@@ -9,8 +9,6 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import PatientDashboard from "./pages/PatientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
-import ReceptionistDashboard from "./pages/ReceptionistDashboard";
-import PharmacyDashboard from "./pages/PharmacyDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from './lib/ProtectedRoute';
@@ -34,8 +32,6 @@ const App = () => (
           <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
           <Route path="/patient-dashboard" element={<ProtectedRoute role="patient"><PatientDashboard /></ProtectedRoute>} />
           <Route path="/doctor-dashboard" element={<ProtectedRoute role="doctor"><DoctorDashboard /></ProtectedRoute>} />
-          <Route path="/receptionist-dashboard" element={<ProtectedRoute role="receptionist"><ReceptionistDashboard /></ProtectedRoute>} />
-          <Route path="/pharmacy-dashboard" element={<ProtectedRoute role="pharmacist"><PharmacyDashboard /></ProtectedRoute>} />
           <Route path="/admin-dashboard" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
           <Route path="/superadmin" element={<ProtectedRoute role="super-admin"><SuperAdminDashboard /></ProtectedRoute>} />
           <Route path="/change-password" element={<ChangePassword />} />

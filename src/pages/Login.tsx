@@ -33,16 +33,11 @@ const Login = () => {
         case 'patient':
           navigate('/patient-dashboard');
           break;
-        case 'receptionist':
-          navigate('/receptionist-dashboard');
-          break;
-        case 'pharmacist':
-          navigate('/pharmacy-dashboard');
-          break;
         case 'super-admin':
           navigate('/superadmin');
           break;
         default:
+          // For removed roles or unknown roles, redirect to home
           navigate('/');
       }
     }

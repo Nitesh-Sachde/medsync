@@ -52,13 +52,8 @@ const Register = () => {
         case 'patient':
           navigate('/patient-dashboard');
           break;
-        case 'receptionist':
-          navigate('/receptionist-dashboard');
-          break;
-        case 'pharmacist':
-          navigate('/pharmacy-dashboard');
-          break;
         default:
+          // For removed roles or unknown roles, redirect to home
           navigate('/');
       }
     } catch (err: any) {

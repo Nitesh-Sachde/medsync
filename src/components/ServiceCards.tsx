@@ -45,10 +45,17 @@ const ServiceCards = () => {
     },
     {
       icon: Pill,
-      title: 'Pharmacy Module',
-      description: 'Medicine dispensing and inventory management system',
+      title: 'Prescription System',
+      description: 'Digital prescription management with PDF generation',
       color: 'bg-red-50 text-red-600',
-      features: ['Stock Management', 'Prescription Tracking', 'Dispensing Log']
+      features: ['Digital Prescriptions', 'PDF Generation', 'Medical Records']
+    },
+    {
+      icon: Shield,
+      title: 'Admin Portal',
+      description: 'Comprehensive hospital management with staff oversight and approvals',
+      color: 'bg-indigo-50 text-indigo-600',
+      features: ['Staff Management', 'Approval Workflows', 'System Analytics']
     }
   ];
 
@@ -97,25 +104,6 @@ const ServiceCards = () => {
               </Card>
             );
           })}
-        </div>
-
-        {/* Emergency Notice */}
-        <div className="mt-16 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl p-6">
-          <div className="flex items-start space-x-4">
-            <div className="bg-red-100 p-2 rounded-lg">
-              <Shield className="h-6 w-6 text-red-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-red-900 mb-2">Emergency Support</h3>
-              <p className="text-red-800 mb-4">
-                Special workflow for patients unable to self-register during emergencies. Our receptionist portal enables quick patient onboarding with data synchronization once the patient is stable.
-              </p>
-              <div className="flex items-center space-x-2 text-sm text-red-700">
-                <Clock className="h-4 w-4" />
-                <span>Available 24/7 for emergency situations</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
