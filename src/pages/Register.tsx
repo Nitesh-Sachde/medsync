@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { User, Calendar, Phone, MapPin } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -23,6 +24,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -41,21 +43,32 @@ const Register = () => {
         contact: formData.phone
       };
       const data = await register(payload);
-      // Redirect based on role
-      switch (data.user.role) {
-        case 'admin':
-          navigate('/admin-dashboard');
-          break;
-        case 'doctor':
-          navigate('/doctor-dashboard');
-          break;
-        case 'patient':
-          navigate('/patient-dashboard');
-          break;
-        default:
-          // For removed roles or unknown roles, redirect to home
-          navigate('/');
-      }
+      
+      // Show success toast
+      toast({
+        title: "Registration Successful!",
+        description: `Welcome to MedSync, ${formData.firstName}! Your patient account has been created successfully.`,
+        duration: 4000,
+      });
+      
+      // Small delay to show toast before navigation
+      setTimeout(() => {
+        // Redirect based on role
+        switch (data.user.role) {
+          case 'admin':
+            navigate('/admin-dashboard');
+            break;
+          case 'doctor':
+            navigate('/doctor-dashboard');
+            break;
+          case 'patient':
+            navigate('/patient-dashboard');
+            break;
+          default:
+            // For removed roles or unknown roles, redirect to home
+            navigate('/');
+        }
+      }, 1500);
     } catch (err: any) {
       setError(err.message);
     } finally {

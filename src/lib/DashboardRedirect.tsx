@@ -1,12 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './authContext';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
 const DashboardRedirect: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check if user must change password
+  if (user.mustChangePassword && !showPasswordModal) {
+    setShowPasswordModal(true);
+  }
+
+  const handlePasswordChanged = () => {
+    setShowPasswordModal(false);
+    // Update user context to reflect password change
+    updateUser({ ...user, mustChangePassword: false });
+  };
+
+  // Show password change modal if required
+  if (showPasswordModal) {
+    return <ChangePasswordModal onPasswordChanged={handlePasswordChanged} />;
   }
 
   // Redirect based on user role

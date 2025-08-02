@@ -27,14 +27,53 @@ A comprehensive hospital management system built with React + TypeScript fronten
    npm install
    ```
 
-3. **Environment Setup**
+3. **Environment Setup (Optional)**
    ```bash
+   # The application works with default settings
+   # Create .env file only if you need custom configuration
    cd backend
-   cp .env.example .env
-   # Edit .env with your MongoDB URI and other configurations
+   
+   # Optional: Create .env for custom settings
+   touch .env  # Linux/Mac
+   # or
+   echo. > .env  # Windows
+   ```
+   
+   **Optional Environment Variables:**
+   ```bash
+   # Database (default: mongodb://localhost:27017/medsync)
+   MONGO_URI=mongodb://localhost:27017/medsync
+   
+   # JWT Secret (default: supersecret)
+   JWT_SECRET=your_jwt_secret_here
+   
+   # AI Features (optional)
+   GEMINI_API_KEY=your_gemini_api_key
+   
+   # Email Features (required for hospital admin creation)
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=your_email@gmail.com
+   SMTP_PASS=your_app_password  # For Gmail, use App Password, not regular password
    ```
 
-4. **Start the application**
+   **Important for Email Setup:**
+   - For Gmail, you need to generate an App Password:
+     1. Enable 2-Factor Authentication on your Google account
+     2. Go to Google Account Settings → Security → App passwords
+     3. Generate a password for "Mail" and use that as SMTP_PASS
+   - The email configuration is required for:
+     - Creating hospital admins (sends login credentials)
+     - Password reset functionality
+     - System notifications
+
+4. **Seed the database with sample data**
+   ```bash
+   cd backend
+   node scripts/seedData.js
+   ```
+
+5. **Start the application**
    ```bash
    # Frontend (from root directory)
    npm run dev
@@ -43,6 +82,15 @@ A comprehensive hospital management system built with React + TypeScript fronten
    cd backend
    npm start
    ```
+
+## 🔑 Default Login Credentials
+
+After seeding the database, use these credentials:
+
+- **Super Admin**: `superadmin@medsync.in` / `abc123`
+- **Doctor**: `priyasharma1@medsync.in` / `doctor123` 
+- **Patient**: `rameshkumar1@gmail.com` / `patient123`
+- **Hospital Admin**: `admin2@fortishospitalmumbai.com` / `admin123`
 
 ## 📁 Project Structure
 
@@ -58,6 +106,7 @@ medsync-ai-health-main/
 │   ├── models/           # MongoDB schemas
 │   ├── routes/           # API routes
 │   ├── middleware/       # Express middleware
+│   ├── scripts/          # Database seeding utilities
 │   └── services/         # Business logic services
 ├── public/               # Static assets
 └── unused-modules/       # Future features and components
@@ -76,14 +125,16 @@ medsync-ai-health-main/
 
 ## 🔧 Available Scripts
 
-### Frontend
+### Frontend (from root directory)
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
+- `npm run seed` - Seed database with sample data
 
-### Backend
+### Backend (from backend/ directory)
 - `npm start` - Start production server
 - `npm run dev` - Start development server with nodemon
+- `npm run seed` - Seed database with sample data
 
 ## 🌐 Access URLs
 

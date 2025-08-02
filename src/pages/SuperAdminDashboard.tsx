@@ -4,7 +4,7 @@ import { useAuth } from '../lib/authContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const SuperAdminDashboard = () => {
@@ -237,17 +237,21 @@ const SuperAdminDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Super Admin Dashboard</h1>
-              <p className="text-gray-600">System & Hospital Management</p>
+              <p className="text-gray-600">
+                {user?.name ? `${user.name} - System Administrator` : 'System & Hospital Management'}
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
+                size="sm"
                 className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
                 onClick={() => {
                   logout();
                   setTimeout(() => navigate('/'), 100);
                 }}
               >
+                <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             </div>

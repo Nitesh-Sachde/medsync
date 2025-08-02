@@ -17,6 +17,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   register: (payload: any) => Promise<void>;
   logout: () => void;
+  updateUser: (userData: User) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       try {
         const decoded: any = jwtDecode(token);
-        setUser({ id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role, hospitalId: decoded.hospitalId });
+        setUser({ id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role, mustChangePassword: decoded.mustChangePassword, hospitalId: decoded.hospitalId });
         localStorage.removeItem('justLoggedOut'); // Clear justLoggedOut if user is present
       } catch {
         setUser(null);
@@ -60,8 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const updateUser = (userData: User) => {
+    setUser(userData);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

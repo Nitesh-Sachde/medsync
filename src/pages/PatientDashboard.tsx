@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, FileText, Pill, Activity, Phone, Bell, Bot } from 'lucide-react';
+import { Calendar, Clock, User, FileText, Pill, Activity, Bot, LogOut } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
 import { useNavigate } from 'react-router-dom';
@@ -118,23 +118,18 @@ const PatientDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Patient Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {patient?.user?.name || 'Patient'}</p>
+              <p className="text-gray-600">
+                {user?.name ? `${user.name} - Patient` : 'Welcome back, Patient'}
+              </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Bell className="h-4 w-4 mr-2" />
-                Notifications
-              </Button>
-              <Button variant="outline" size="sm">
-                <Phone className="h-4 w-4 mr-2" />
-                Emergency
-              </Button>
               <Button 
                 variant="outline" 
                 size="sm"
                 className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
                 onClick={() => { logout(); setTimeout(() => navigate('/'), 100); }}
               >
+                <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             </div>

@@ -21,7 +21,7 @@ const AdminDashboard = () => {
   const [activities, setActivities] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   const [showAddUser, setShowAddUser] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'doctor', contact: '', specialty: '' });
+  const [form, setForm] = useState({ name: '', email: '', role: 'doctor', contact: '', specialty: '' });
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserError, setAddUserError] = useState('');
   const [addUserSuccess, setAddUserSuccess] = useState('');
@@ -106,17 +106,25 @@ const AdminDashboard = () => {
     setAddUserError('');
     setAddUserSuccess('');
     try {
-      await request('/auth/register', {
+      const response = await request('/auth/create-doctor', {
         method: 'POST',
         body: JSON.stringify({
-          ...form,
-          hospitalId: user?.hospitalId
+          name: form.name,
+          email: form.email,
+          contact: form.contact,
+          specialty: form.specialty,
+          department: form.specialty // Using specialty as department for now
         })
       });
-      setAddUserSuccess('User added successfully!');
+      
+      const emailMessage = response.emailSent 
+        ? ' Login credentials have been sent to their email.' 
+        : ' Please manually provide login credentials.';
+      
+      setAddUserSuccess(`Doctor created successfully!${emailMessage}`);
       setShowAddUser(false);
-      setForm({ name: '', email: '', password: '', role: 'doctor', contact: '', specialty: '' });
-      fetchUsers();
+      setForm({ name: '', email: '', role: 'doctor', contact: '', specialty: '' });
+      fetchUsers(); // Auto-refresh the users list
     } catch (err: any) {
       setAddUserError(err.message);
     } finally {
@@ -129,7 +137,6 @@ const AdminDashboard = () => {
     setForm({
       name: userToEdit.name,
       email: userToEdit.email,
-      password: '',
       role: userToEdit.role,
       contact: userToEdit.contact || '',
       specialty: userToEdit.specialty || ''
@@ -149,14 +156,13 @@ const AdminDashboard = () => {
           email: form.email,
           role: form.role,
           contact: form.contact,
-          specialty: form.specialty,
-          ...(form.password && { password: form.password })
+          specialty: form.specialty
         })
       });
       setEditUserSuccess('User updated successfully!');
       setShowEditUser(false);
       setEditUser(null);
-      setForm({ name: '', email: '', password: '', role: 'doctor', contact: '', specialty: '' });
+      setForm({ name: '', email: '', role: 'doctor', contact: '', specialty: '' });
       fetchUsers();
     } catch (err: any) {
       setEditUserError(err.message);
@@ -209,7 +215,9 @@ const AdminDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600">Hospital Management System</p>
+              <p className="text-gray-600">
+                {user?.name ? `${user.name} - Hospital Administrator` : 'Hospital Administrator'}
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               <AIChatModal title="AI Administrative Assistant">
@@ -226,7 +234,7 @@ const AdminDashboard = () => {
                 onClick={handleLogout}
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                className="flex items-center gap-2 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
                 Logout
@@ -315,7 +323,7 @@ const AdminDashboard = () => {
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Add New Staff Member</DialogTitle>
+                          <DialogTitle>Add New Doctor</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">
                           <Input
@@ -329,20 +337,18 @@ const AdminDashboard = () => {
                             value={form.email}
                             onChange={(e) => setForm({...form, email: e.target.value})}
                           />
-                          <Input
-                            placeholder="Password"
-                            type="password"
-                            value={form.password}
-                            onChange={(e) => setForm({...form, password: e.target.value})}
-                          />
-                          <Select value={form.role} onValueChange={(value) => setForm({...form, role: value})}>
+                          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                            <p className="text-sm text-blue-800">
+                              <strong>Note:</strong> A temporary password will be auto-generated and sent to the doctor's email. 
+                              They will be required to change it on first login.
+                            </p>
+                          </div>
+                          <Select value={form.role} onValueChange={(value) => setForm({...form, role: value})} disabled>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select Role" />
+                              <SelectValue placeholder="Role: Doctor" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="doctor">Doctor</SelectItem>
-                              <SelectItem value="patient">Patient</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
                             </SelectContent>
                           </Select>
                           <Input
@@ -350,13 +356,11 @@ const AdminDashboard = () => {
                             value={form.contact}
                             onChange={(e) => setForm({...form, contact: e.target.value})}
                           />
-                          {form.role === 'doctor' && (
-                            <Input
-                              placeholder="Specialty"
-                              value={form.specialty}
-                              onChange={(e) => setForm({...form, specialty: e.target.value})}
-                            />
-                          )}
+                          <Input
+                            placeholder="Specialty (e.g., Cardiology, Pediatrics)"
+                            value={form.specialty}
+                            onChange={(e) => setForm({...form, specialty: e.target.value})}
+                          />
                           {addUserError && <p className="text-red-500 text-sm">{addUserError}</p>}
                           {addUserSuccess && <p className="text-green-500 text-sm">{addUserSuccess}</p>}
                           <div className="flex gap-2">
@@ -530,12 +534,12 @@ const AdminDashboard = () => {
               value={form.email}
               onChange={(e) => setForm({...form, email: e.target.value})}
             />
-            <Input
-              placeholder="New Password (leave blank to keep current)"
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({...form, password: e.target.value})}
-            />
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> Password changes are not supported through this form. 
+                Users can reset their passwords using the "Forgot Password" feature.
+              </p>
+            </div>
             <Select value={form.role} onValueChange={(value) => setForm({...form, role: value})}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Role" />

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Users, FileText, Pill, Activity, Phone, Bell, Stethoscope, LogOut, RotateCcw, Bot } from 'lucide-react';
+import { Calendar, Clock, Users, FileText, Pill, Activity, Stethoscope, LogOut, RotateCcw, Bot } from 'lucide-react';
 import { request } from '../lib/api';
 import { useAuth } from '../lib/authContext';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -143,7 +143,6 @@ const DoctorDashboard = () => {
         todayAppointments: todayAppointments.length,
         pendingReports: 0,
         totalPatients: myPatients.length,
-        emergencies: apptRes.appointments.filter((a: any) => a.type === 'Emergency').length,
         // Additional analytics
         upcomingAppointments: upcomingAppointments.length,
         completedAppointments: completedAppointments.length,
@@ -497,14 +496,6 @@ const DoctorDashboard = () => {
               <Button variant="outline" size="sm" onClick={refreshAppointments}>
                 <RotateCcw className="h-4 w-4 mr-2 text-blue-600" />
                 Refresh
-              </Button>
-              <Button variant="outline" size="sm">
-                <Bell className="h-4 w-4 mr-2" />
-                Alerts ({stats.emergencies})
-              </Button>
-              <Button variant="outline" size="sm">
-                <Phone className="h-4 w-4 mr-2" />
-                Emergency
               </Button>
               <Button 
                 variant="outline" 
